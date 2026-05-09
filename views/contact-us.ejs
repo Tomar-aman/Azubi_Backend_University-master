@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Table</title>
+  <style>
+    table {
+      width: 50%;
+      border-collapse: collapse;
+      margin: 20px auto;
+      font-family: Arial, sans-serif;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <table>
+    <tr>
+      <th>Field</th>
+      <th>Value</th>
+    </tr>
+    <tr>
+      <td>Name</td>
+      <td><%= data.name %></td>
+    </tr>
+    <tr>
+      <td>Regarding</td>
+      <td><%= data.regarding %></td>
+    </tr>
+    <tr>
+      <td>Email</td>
+      <td><%= data.email %></td>
+    </tr>
+    <tr>
+      <td>Message</td>
+      <td><%= data.message %></td>
+    </tr>
+  </table>
+</body>
+</html>

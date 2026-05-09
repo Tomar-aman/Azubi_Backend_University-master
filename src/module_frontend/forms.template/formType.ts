@@ -1,0 +1,5 @@
+export const formTypes = {
+  CONTACT_FORM: "CONTACT_FORM",
+  COMMON_FORM: "COMMON_FORM",
+  MAGAZINE_ORDER: "MAGAZINE_ORDER",
+};

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="container">
+        <!-- <div>
+            <p>Sehr geehrte/r Herr/Frau ,</p>
+        </div>
+        <div>
+            <p>über fachzubi.de bin ich auf Ihre Stellenanzeige aufmerksam geworden:</p>
+        </div>         -->
+        <%- emailContent.upperContent %>
+          
+        <!-- <div>
+            <h4>
+                <%= jobTitle %>
+            </h4>
+        </div> -->
+
+        <div>
+            <h4>
+                <%= companyName %>
+            </h4>
+        </div>
+
+        <div>
+            <a href="<%= jobUrl %>">
+              <%= jobUrl %>
+            </a>
+        </div>
+
+        <!-- <div>
+            <p>
+                Hiermit bewerbe ich mich auf die von Ihnen ausgeschriebene Stelle in Ihrem Unternehmen. Nachfolgend übersende ich Ihnen im Anhang meine Bewerbungsunterlagen. Über eine positive Rückmeldung würde ich mich freuen.
+            </p>
+        </div>
+        <div>
+            <p>
+                Für Rückfragen bin ich gerne für Sie erreichbar.
+            </p>
+        </div>
+
+        <div>
+            <p>
+                Mit freundlichen Grüßen,
+            </p>
+        </div> -->
+        <%- emailContent.lowerContent %>
+        <div>
+            <h5>
+                Name
+                <br>
+                <%= payload.applicantName %>
+            </h5>
+        </div>
+    </div>
+
+    <div>
+        <table style="width:100%; border-collapse:collapse; margin-top:20px;">
+            <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left; background-color:#f2f2f2;">Name</th>
+                <td style="border:1px solid #ddd; padding:8px; text-align:left;"><%= payload.applicantName %></td>
+            </tr>
+
+            <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left; background-color:#f2f2f2;">Email id</th>
+                <td style="border:1px solid #ddd; padding:8px; text-align:left;"><%= payload.email %></td>
+            </tr>
+
+            <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left; background-color:#f2f2f2;">Telefonnummer</th>
+                <td style="border:1px solid #ddd; padding:8px; text-align:left;"><%= payload.phone %></td>
+            </tr>
+
+            <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left; background-color:#f2f2f2;">Über mich</th>
+                <td style="border:1px solid #ddd; padding:8px; text-align:left;"><%= payload.aboutMe %></td>
+            </tr>
+
+            <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left; background-color:#f2f2f2;"><%= emailContent.coverLetterDynamicText %></th>
+                <td style="border:1px solid #ddd; padding:8px; text-align:left;"><%- payload.coverLetter %></td>
+            </tr>
+        </table>
+    </div>
+
+    
+</body>
+</html>

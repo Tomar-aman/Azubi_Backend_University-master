@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Table</title>
+  <style>
+    table {
+      width: 50%;
+      border-collapse: collapse;
+      margin: 20px auto;
+      font-family: Arial, sans-serif;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <table>
+    <tr>
+      <th>Field</th>
+      <th>Value</th>
+    </tr>
+    <% if (data.name) { %>
+    <tr>
+      <td>Name</td>
+      <td><%= data.name %></td>
+    </tr>
+    <% } %>
+    <% if (data.street) { %>
+    <tr>
+      <td>Street</td>
+      <td><%= data.street %></td>
+    </tr>
+    <% } %>
+    <% if (data.companyName) { %>
+    <tr>
+      <td>Company Name</td>
+      <td><%= data.companyName %></td>
+    </tr>
+    <% } %>
+    <% if (data.plz) { %>
+    <tr>
+      <td>PLZ</td>
+      <td><%= data.plz %></td>
+    </tr>
+    <% } %>
+    <% if (data.city) { %>
+    <tr>
+      <td>City</td>
+      <td><%= data.city %></td>
+    </tr>
+    <% } %>
+    <% if (data.email) { %>
+    <tr>
+      <td>Email</td>
+      <td><%= data.email %></td>
+    </tr>
+    <% } %>
+    <% if (data.selectRegion) { %>
+    <tr>
+      <td>Select Region</td>
+      <td><%= data.selectRegion %></td>
+    </tr>
+    <% } %>
+  </table>
+</body>
+</html>
