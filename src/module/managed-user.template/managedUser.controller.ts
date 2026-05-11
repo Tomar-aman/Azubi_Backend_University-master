@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import { managedUserModel, managedEmployeeModel } from "../../models";
+import { managedUserModel } from "../../models";
 import emailService from "../../utils/emailService";
 import logger from "../../utils/logger";
 import bcrypt from "bcrypt";
