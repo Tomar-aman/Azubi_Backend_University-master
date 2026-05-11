@@ -25,10 +25,10 @@ class ManagedEmployeeController {
       });
 
       // Send welcome email with credentials
-      const loginUrl = process.env.ADMIN_PANEL_URL ?? process.env.FRONTEND_URL ?? "http://localhost:3000";
+      const loginUrl = process.env.MANAGED_EMPLOYEE_LOGIN_URL || "https://wohnzugang.de";
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;background:#f9f9f9;border-radius:8px">
-          <h2 style="color:#07575A">Welcome to Azubi Admin Panel</h2>
+          <h2 style="color:#07575A">Welcome to the Employee Panel</h2>
           <p>Hi <strong>${name}</strong>,</p>
           <p>Your employee account has been created. Here are your login credentials:</p>
           <table style="width:100%;border-collapse:collapse;margin:16px 0">
