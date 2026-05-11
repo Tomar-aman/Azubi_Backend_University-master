@@ -6,6 +6,7 @@ import {
 } from "./auth.types";
 import { type UserSession } from "src/models/session";
 import { AuthService } from "./auth.service";
+import { managedUserModel, managedEmployeeModel } from "../../models/index";
 class AuthController {
   private readonly userService: UserService;
   private readonly authService: AuthService;
@@ -26,16 +27,37 @@ class AuthController {
   public loginUser = async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
-      const user = await this.userService.findOneWithOptions({ email });
+
+      // 1) Try main admin User model first
+      let user: any = await this.userService.findOneWithOptions({ email });
+
+      // 2) Fallback: check ManagedUser model (users created via Manage Users feature)
+      if (!user) {
+        user = await managedUserModel.findOne({ email });
+      }
+
+      // 3) Fallback: check ManagedEmployee model (employees created via Manage Employees feature)
+      if (!user) {
+        user = await managedEmployeeModel.findOne({ email });
+      }
+
       if (!user) {
         res.sendNotFound404Response("User not found", null);
         return;
       }
+
+      // Check status for managed users and employees
+      if (user.status && user.status === "Inactive") {
+        res.sendUnauthorized401Response("Account is inactive. Contact your administrator.", null);
+        return;
+      }
+
       const isPasswordMatch = await user.comparePassword(password);
       if (!isPasswordMatch) {
         res.sendUnauthorized401Response("Incorrect password", null);
         return;
       }
+
       const payload: UserSession = {
         userAgent: req.headers["user-agent"] ?? "",
         ipAddress: req.ip ?? "",

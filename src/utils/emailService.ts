@@ -34,20 +34,23 @@ class EmailService {
 
   async init() {
     const smtpInfo = await smtpSettingModel.findOne();
+    const port = Number(smtpInfo?.port ?? process.env.EMAIL_PORT ?? 465);
+    const host = smtpInfo?.host ?? process.env.EMAIL_HOST ?? "smtp.strato.de";
+    const user = smtpInfo?.userName ?? process.env.EMAIL_USER ?? "";
+    const pass = smtpInfo?.password ?? process.env.EMAIL_PASS ?? "";
+    const service = smtpInfo?.service ?? process.env.EMAIL_SERVICE ?? "";
+
     this.transporter = nodemailer.createTransport({
-      // ...options,
-      // @ts-ignore
-      host: smtpInfo?.host ?? process.env.EMAIL_HOST,
-      port: smtpInfo?.port ?? process.env.EMAIL_PORT,
-      secure: true,
-      tls: true,
-      service: smtpInfo?.service ?? process.env.EMAIL_SERVICE,
-      auth: {
-        user: smtpInfo?.userName ?? process.env.EMAIL_USER,
-        pass: smtpInfo?.password ?? process.env.EMAIL_PASS,
+      host,
+      port,
+      secure: port === 465,   // true for 465 (SSL), false for 587 (STARTTLS)
+      ...(service ? { service } : {}),
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false, // Accept Strato's self-signed/intermediate cert
       },
     });
-    this.fromEmail = smtpInfo?.userName ?? (process.env.EMAIL_FROM as string);
+    this.fromEmail = smtpInfo?.userName ?? (process.env.EMAIL_FROM as string) ?? user;
   }
 
   async updateFromEmail(fromEmail: string) {
@@ -56,9 +59,15 @@ class EmailService {
 
   async sendEmail(options: EmailOptions) {
     try {
-      const { subject, text, html, bcc, attachments } = options;
+      // Safety guard: re-init if transporter wasn't set up yet
+      if (!this.transporter) {
+        await this.init();
+      }
+
+      const { subject, text, html, bcc, to, attachments } = options;
       const mailOptions = {
         from: this.fromEmail,
+        to: to?.join(", "),   // FIX: was missing — nodemailer needs this to send
         bcc,
         subject,
         text,

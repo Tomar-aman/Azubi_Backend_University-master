@@ -3,6 +3,7 @@ import JwtService from "../utils/jwt";
 import { UserService } from "../module/user.template/user.service";
 import { type JwtAccessTokenClaims } from "../module/auth.template/auth.types";
 import logger from "../utils/logger";
+import { managedUserModel, managedEmployeeModel } from "../models/index";
 
 class AuthMiddleware {
   private readonly jwtService = new JwtService();
@@ -27,7 +28,19 @@ class AuthMiddleware {
           isValidSession: true,
         });
         if (session) {
-          const user = await this.userService.findById(session?.userId);
+          // 1) Try main User model
+          let user: any = await this.userService.findById(session?.userId);
+
+          // 2) Fallback to ManagedUser model
+          if (!user) {
+            user = await managedUserModel.findById(session?.userId);
+          }
+
+          // 3) Fallback to ManagedEmployee model
+          if (!user) {
+            user = await managedEmployeeModel.findById(session?.userId);
+          }
+
           if (user) {
             req.user = user;
           }

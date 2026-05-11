@@ -39,6 +39,8 @@ import _ManageCitiesContentModel from "./manageCityContent";
 import FooterImagesModel from "./footerImages";
 import MapDetailModel from "./map";
 import ContactFormModel from "./contactForm";
+import ManagedUserModel from "./managedUser";
+import ManagedEmployeeModel from "./managedEmployee";
 
 export const userSessionModel = UserSessionModel;
 export const userModel = UserModel;
@@ -81,3 +83,5 @@ export const ManageCitiesContentModel = _ManageCitiesContentModel;
 export const footerImagesModel = FooterImagesModel;
 export const mapDetailModel = MapDetailModel;
 export const contactFormDaynamic = ContactFormModel;
+export const managedUserModel = ManagedUserModel;
+export const managedEmployeeModel = ManagedEmployeeModel;

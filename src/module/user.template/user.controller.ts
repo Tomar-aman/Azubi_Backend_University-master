@@ -29,11 +29,11 @@ class UserController {
 
   public getUser = async (req: Request, res: Response) => {
     try {
-      const { _id } = req.user;
-      const user = await this.userService.findOneWithOptions({ _id });
-      res.sendCreated201Response("User created successfully", user);
+      // req.user is populated by verifyToken middleware (works for both User and ManagedUser)
+      const user = req.user;
+      res.sendSuccess200Response("User fetched successfully", user);
     } catch (error) {
-      res.sendErrorResponse("Error creating user", error);
+      res.sendErrorResponse("Error fetching user", error);
     }
   };
 

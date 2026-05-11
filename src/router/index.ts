@@ -29,6 +29,8 @@ import dynamicContent from "../module_frontend/contact/route";
 import mapContent from "../module_frontend/map/route";
 import NewsLetter from "../module_frontend/newsLetter/route";
 import ContactForm from "../module_frontend/conatct.Template/route";
+import managedUserRoute from "../module/managed-user.template/managedUser.routes";
+import managedEmployeeRoute from "../module/managed-employee.template/managedEmployee.routes";
 const router = [
   {
     prefix: "/federal-states",
@@ -151,6 +153,14 @@ const router = [
   {
     prefix: "/landing-page-images",
     router: LandingPageRoute,
+  },
+  {
+    prefix: "/managed-users",
+    router: managedUserRoute,
+  },
+  {
+    prefix: "/managed-employees",
+    router: managedEmployeeRoute,
   },
 ];
 
