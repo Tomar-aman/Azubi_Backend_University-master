@@ -37,7 +37,15 @@ export class AuthService {
         return null;
       }
       // Generate accessToken
-      const userDetails = await this.userService.findById(userSession.userId);
+      let userDetails: any = await this.userService.findById(userSession.userId);
+      if (!userDetails) {
+        const { managedUserModel, managedEmployeeModel } = require("../../models/index");
+        userDetails = await managedUserModel.findById(userSession.userId);
+        if (!userDetails) {
+          userDetails = await managedEmployeeModel.findById(userSession.userId);
+        }
+      }
+      
       if (userDetails) {
         const accessTokenPayload: JwtAccessTokenPayload = {
           sessionId: userSession._id,

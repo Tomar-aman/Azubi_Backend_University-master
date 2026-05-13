@@ -27,13 +27,26 @@ class EmployerController {
   public getAllEmployers = async (req: Request, res: Response) => {
     try {
       const { searchValue, pageNo, filter, recordPerPage } = req.query;
+      const { _id, permissions, createdBy, position, name } = req.user as any;
+      
+      let creatorIdFilter = null;
+      if (permissions !== undefined) {
+        const isManagedEmployee = position !== undefined || name !== undefined;
+        if (isManagedEmployee) {
+          creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+        } else {
+          creatorIdFilter = _id; // ManagedUser sees their own employers
+        }
+      }
+
       const employers = await this.employerService.getAllEmployersService(
         searchValue,
         pageNo,
         filter,
         recordPerPage,
+        creatorIdFilter,
       );
-      const totalRecords = await this.employerService.getCount();
+      const totalRecords = await this.employerService.getCount(creatorIdFilter);
       const recordPerPageValue = recordPerPage ? Number(recordPerPage) : 10;
       const count = Math.ceil(totalRecords / recordPerPageValue);
       res.sendSuccess200Response("Employers retrieved successfully", {
@@ -46,9 +59,20 @@ class EmployerController {
     }
   };
 
-  public getEmployeesList = async (_: Request, res: Response) => {
+  public getEmployeesList = async (req: Request, res: Response) => {
     try {
-      const companies = await this.employerService.getEmployeesListService();
+      const { _id, permissions, createdBy, position, name } = req.user as any;
+      let creatorIdFilter = null;
+      if (permissions !== undefined) {
+        const isManagedEmployee = position !== undefined || name !== undefined;
+        if (isManagedEmployee) {
+          creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+        } else {
+          creatorIdFilter = _id; // ManagedUser sees their own employers
+        }
+      }
+
+      const companies = await this.employerService.getEmployeesListService(creatorIdFilter);
       res.sendSuccess200Response("Employers retrieved successfully", companies);
     } catch (error) {
       logger.error("getEmployeesList", error);

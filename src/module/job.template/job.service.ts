@@ -44,6 +44,7 @@ export class JobService {
     jobType: string[],
     date: any,
     deviceId: string,
+    creatorIdFilter: string[] | null = null,
   ) {
     recordPerPage = recordPerPage ?? 10;
     recordPerPage = recordPerPage > 0 ? recordPerPage : 10;
@@ -124,9 +125,14 @@ export class JobService {
       };
     }
 
+    const matchStage: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchStage.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
+    }
+
     const pipeline: any = [
       {
-        $match: { isDeleted: false },
+        $match: matchStage,
       },
       {
         $match: {
@@ -343,10 +349,12 @@ export class JobService {
     }
   }
 
-  public async getCount() {
-    const jobCount = await jobModel.find().count({
-      isDeleted: false,
-    });
+  public async getCount(creatorIdFilter: string[] | null = null) {
+    const matchQuery: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchQuery.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
+    }
+    const jobCount = await jobModel.find(matchQuery).count();
     return jobCount;
   }
 

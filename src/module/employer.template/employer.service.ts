@@ -31,14 +31,18 @@ export class EmployerService {
     pageNo,
     filter,
     recordPerPage,
+    creatorIdFilter = null,
   ) {
     const pipeline: any[] = [];
 
+    const matchStage: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchStage.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+    }
+
     // Match stage
     pipeline.push({
-      $match: {
-        isDeleted: false,
-      },
+      $match: matchStage,
     });
 
     // Populate industryName and city
@@ -142,8 +146,12 @@ export class EmployerService {
     return result[0] ? result[0].data : [];
   }
 
-  public getEmployeesListService = async () => {
-    const companies = await employerModel.find();
+  public getEmployeesListService = async (creatorIdFilter: string | null = null) => {
+    const matchQuery: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchQuery.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+    }
+    const companies = await employerModel.find(matchQuery);
     if (companies)
       return companies.map((company) => ({
         id: company.id,
@@ -152,11 +160,13 @@ export class EmployerService {
     return [];
   };
 
-  public async getCount() {
+  public async getCount(creatorIdFilter = null) {
+    const matchQuery: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchQuery.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+    }
     const employer = await employerModel
-      .find({
-        isDeleted: false,
-      })
+      .find(matchQuery)
       .count();
     return employer;
   }
