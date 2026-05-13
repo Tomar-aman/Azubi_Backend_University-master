@@ -8,11 +8,11 @@ class ManagedEmployeeController {
   // ─── CREATE EMPLOYEE ──────────────────────────────────────────────────────
   public createEmployee = async (req: Request, res: Response) => {
     try {
-      const { name, email, phoneNo, position, permissions } = req.body;
+      const { name, email, phoneNo, position, permissions, password: manualPassword } = req.body;
       const createdBy = req.user?._id?.toString() ?? "";
 
-      // Generate a strong random password
-      const password = crypto.randomBytes(8).toString("hex");
+      // Generate a strong random password if not provided
+      const password = manualPassword || crypto.randomBytes(8).toString("hex");
 
       const employee = await managedEmployeeModel.create({
         name,
@@ -123,13 +123,19 @@ class ManagedEmployeeController {
   // ─── UPDATE EMPLOYEE ──────────────────────────────────────────────────────
   public updateEmployee = async (req: Request, res: Response) => {
     try {
-      const { name, email, phoneNo, position, permissions, status } = req.body;
-      const employee = await managedEmployeeModel.findByIdAndUpdate(
-        req.params.id,
-        { $set: { name, email, phoneNo, position, permissions, status } },
-        { new: true }
-      );
+      const { name, email, phoneNo, position, permissions, status, password } = req.body;
+      const employee = await managedEmployeeModel.findById(req.params.id);
       if (!employee) { res.sendNotFound404Response("Employee not found", null); return; }
+
+      if (name !== undefined) employee.name = name;
+      if (email !== undefined) employee.email = email;
+      if (phoneNo !== undefined) employee.phoneNo = phoneNo;
+      if (position !== undefined) employee.position = position;
+      if (permissions !== undefined) employee.permissions = permissions;
+      if (status !== undefined) employee.status = status;
+      if (password) employee.password = password;
+
+      await employee.save();
       res.sendSuccess200Response("Employee updated successfully", employee);
     } catch (error) {
       res.sendErrorResponse("Error updating employee", error);
