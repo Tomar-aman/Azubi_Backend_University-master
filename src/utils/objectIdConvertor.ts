@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
 
 class ObjectIdConverter {
-  public convertToObjectId(strId: string): mongoose.Types.ObjectId {
+  public convertToObjectId(strId: any): mongoose.Types.ObjectId | null {
     try {
-      const objectId = new mongoose.Types.ObjectId(strId);
-      return objectId;
+      if (!strId || !mongoose.Types.ObjectId.isValid(strId)) {
+        return null;
+      }
+      return new mongoose.Types.ObjectId(strId);
     } catch (error) {
-      return error;
+      return null;
     }
   }
 }

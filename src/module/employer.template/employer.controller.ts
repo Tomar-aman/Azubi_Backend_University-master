@@ -106,20 +106,18 @@ class EmployerController {
     try {
       const companyImages = req.files?.companyImages;
       const { id } = req.params;
-      if (req.body.companyLogo) {
-        req.body.companyLogo = this.objectIdConverter.convertToObjectId(
-          req.body.companyLogo,
-        );
-      }
+      // Sanitize and convert companyLogo
+      req.body.companyLogo = this.objectIdConverter.convertToObjectId(req.body.companyLogo);
+
       if (req?.files?.companyLogo) {
         const mediaId = await this.fileHandler.saveFileAndCreateMedia(
           req.files.companyLogo,
         );
-        req.body.companyLogo = mediaId ?? "";
+        req.body.companyLogo = mediaId ?? null;
       }
+
       if (req?.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
-        req.body.companyLogo =
-          new mongoose.Types.ObjectId(req?.body.oldCompanyLogo) ?? "";
+        req.body.companyLogo = this.objectIdConverter.convertToObjectId(req.body.oldCompanyLogo);
       }
       const updatedEmployer =
         await this.employerService.updateEmployerByIdService(id, req.body, {
@@ -207,7 +205,7 @@ class EmployerController {
         companyLogo = mediaId ?? null;
       }
       if (req.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
-        companyLogo = new mongoose.Types.ObjectId(req.body.oldCompanyLogo);
+        companyLogo = this.objectIdConverter.convertToObjectId(req.body.oldCompanyLogo);
       }
 
       const employerData: any = {
