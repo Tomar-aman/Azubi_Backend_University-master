@@ -183,9 +183,9 @@ export class EmployerService {
         select: "_id",
       })
       .select("-industryName -city");
-    const newImage: any = await mediaModel.findById(
-      employerDetail.companyLogo._id,
-    );
+    const newImage: any = employerDetail?.companyLogo?._id
+      ? await mediaModel.findById(employerDetail.companyLogo._id)
+      : null;
     if (employerDetail) {
       images = await companyImageModel.aggregate([
         {
