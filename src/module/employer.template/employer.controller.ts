@@ -117,7 +117,7 @@ class EmployerController {
         );
         req.body.companyLogo = mediaId ?? "";
       }
-      if (req?.body.oldCompanyLogo) {
+      if (req?.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
         req.body.companyLogo =
           new mongoose.Types.ObjectId(req?.body.oldCompanyLogo) ?? "";
       }
@@ -199,38 +199,45 @@ class EmployerController {
         locationUrl,
         oldTransformedCardContainImage,
       } = req.body;
-      let companyLogo: any = "";
+      let companyLogo: any = null;
       if (req?.files?.companyLogo) {
         const mediaId = await this.fileHandler.saveFileAndCreateMedia(
           req.files.companyLogo,
         );
-        companyLogo = mediaId ?? "";
+        companyLogo = mediaId ?? null;
       }
-      if (req.body.oldCompanyLogo) {
+      if (req.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
         companyLogo = new mongoose.Types.ObjectId(req.body.oldCompanyLogo);
       }
+
+      const employerData: any = {
+        locationUrl,
+        industryName,
+        contactPerson,
+        jobTitle,
+        companyName,
+        email,
+        website,
+        mapUrl,
+        phoneNo: "+49" + phoneNo,
+        address,
+        zipCode,
+        companyDescription,
+        videoLink: JSON.parse(videoLink),
+        city,
+        status,
+        createdBy: _id,
+        isDeleted: false,
+        oldTransformedCardContainImage,
+      };
+
+      // Only include companyLogo if it has a real value
+      if (companyLogo) {
+        employerData.companyLogo = companyLogo as unknown as Schema.Types.ObjectId;
+      }
+
       const newEmployer = await this.employerService.addEmployerService(
-        {
-          locationUrl,
-          industryName,
-          contactPerson,
-          jobTitle,
-          companyName,
-          email,
-          website,
-          mapUrl,
-          phoneNo: "+49" + phoneNo,
-          address,
-          zipCode,
-          companyLogo: companyLogo as unknown as Schema.Types.ObjectId,
-          companyDescription,
-          videoLink: JSON.parse(videoLink),
-          city,
-          status,
-          createdBy: _id,
-          isDeleted: false,
-          oldTransformedCardContainImage,
-        },
+        employerData,
         { ...req.body, ...req.files },
       );
       const { removedFile } = req.body;
