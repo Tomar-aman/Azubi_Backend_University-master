@@ -6,45 +6,49 @@ import { type Media } from "../models/media";
 import logger from "./logger";
 
 export class FileHandler {
-  public async saveFileAndCreateMedia(file: any): Promise<string | null> {
+  public async saveFileAndCreateMedia(fileInput: any): Promise<string | null> {
     try {
-      // Ensure file.data is a Buffer
-      if (!Buffer.isBuffer(file.data)) {
-        throw new Error("Invalid buffer type");
+      // Handle array of files by taking the first one
+      const file = Array.isArray(fileInput) ? fileInput[0] : fileInput;
+
+      if (!file || !file.data || !Buffer.isBuffer(file.data)) {
+        logger.error("Invalid file or buffer type", { file: !!file, hasData: !!file?.data });
+        return null;
       }
 
-      // Generate a unique file name using the current timestamp
+      // Generate a unique file name
       const actualFileName = file.name;
       const fileName = Date.now() + "-" + file.name;
-      let filePath = path.join("public", fileName).replace(/\\/g, "/");
-      await fs.mkdir(path.join(__dirname, "../../public"), { recursive: true });
+      
+      // Use absolute path for saving
+      const publicDir = path.resolve(__dirname, "../../public");
+      const filePathAbsolute = path.join(publicDir, fileName);
+      const relativePath = fileName; // We only store the filename or relative-to-public path
 
-      // Save the original file to the 'public' folder
-      await fs.writeFile(filePath, file.data);
+      await fs.mkdir(publicDir, { recursive: true });
 
-      // Conditionally convert GIF to PNG using sharp
+      // Save the original file
+      await fs.writeFile(filePathAbsolute, file.data);
+
+      let finalRelativePath = relativePath;
+
+      // Conditionally convert GIF to PNG
       if (file.mimetype === "image/gif") {
-        const pngFilePath = path
-          .join(
-            "public",
-            Date.now() + "-" + actualFileName.replace(/\.gif$/, ".png"),
-          )
-          .replace(/\\/g, "/");
-        await sharp(file.data).toFile(pngFilePath);
-        file.mimetype = "image/png"; // Update the mimetype to PNG
-        filePath = pngFilePath;
+        const pngFileName = Date.now() + "-" + actualFileName.replace(/\.gif$/, ".png");
+        const pngFilePathAbsolute = path.join(publicDir, pngFileName);
+        
+        await sharp(file.data).toFile(pngFilePathAbsolute);
+        file.mimetype = "image/png";
+        finalRelativePath = pngFileName;
       }
 
-      // Create a media document in your MongoDB collection
-      const fileType = file.mimetype;
+      // Create a media document
       const mediaData: Media = {
-        type: fileType,
-        fileName: actualFileName,
-        filepath: filePath.replace(/^public\//, ""),
+        type: file.mimetype || "image/png",
+        fileName: actualFileName || "upload-" + Date.now(),
+        filepath: finalRelativePath,
       };
       const createdMedia = await mediaModel.create(mediaData);
-
-      // Return the ID of the created media document
       return createdMedia._id;
     } catch (error) {
       logger.error("saveFileAndCreateMedia", error);

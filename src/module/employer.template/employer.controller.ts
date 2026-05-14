@@ -106,6 +106,8 @@ class EmployerController {
     try {
       const companyImages = req.files?.companyImages || req.files?.["companyImages[]"];
       const { id } = req.params;
+      console.log("UPDATE EMPLOYER BODY:", req.body);
+      console.log("UPDATE EMPLOYER FILES:", req.files);
       // Sanitize and convert companyLogo
       req.body.companyLogo = this.objectIdConverter.convertToObjectId(req.body.companyLogo);
 
@@ -136,6 +138,7 @@ class EmployerController {
         updatedEmployer,
       );
     } catch (error) {
+      logger.error("updateEmployerById error", error);
       res.sendErrorResponse("Error updating employer", error);
     }
   };
