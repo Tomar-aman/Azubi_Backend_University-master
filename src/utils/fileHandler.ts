@@ -20,8 +20,8 @@ export class FileHandler {
       const actualFileName = file.name;
       const fileName = Date.now() + "-" + file.name;
       
-      // Use absolute path for saving
-      const publicDir = path.resolve(__dirname, "../../public");
+      // Use absolute path for saving — process.cwd() matches how index.ts serves static files
+      const publicDir = path.resolve(process.cwd(), "public");
       const filePathAbsolute = path.join(publicDir, fileName);
       const relativePath = fileName; // We only store the filename or relative-to-public path
 
