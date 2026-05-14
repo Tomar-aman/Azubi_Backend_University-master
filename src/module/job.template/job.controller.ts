@@ -5,7 +5,7 @@ import { FileHandler } from "../../utils/fileHandler";
 import { JobDocumentService } from "./job.documents.service";
 import { JobImageHandler } from "../../utils/jobsImageHandler";
 import mongoose from "mongoose";
-import { jobImagesModel, managedEmployeeModel } from "../../models/index";
+import { jobImagesModel, managedEmployeeModel, cityModel } from "../../models/index";
 class JobController {
   private readonly jobService: JobService;
   private readonly fileHandler: FileHandler;
@@ -31,11 +31,34 @@ class JobController {
         jobType,
         date,
         deviceId,
+        creatorId, // <-- Accept creatorId from query for public fetching
+        qrId, // <-- Single parameter for scanning QR codes
       } = req.query;
-      const { _id, permissions, position, name } = req.user as any;
+      const { _id, permissions, position, name } = (req.user as any) || {};
       
       let creatorIdFilter: string[] | null = null;
-      if (permissions !== undefined) {
+      let finalSelectedCity = slectedCity as string[] | undefined;
+
+      // Handle qrId: if it's a valid city ID, fetch for city. Else, treat as user ID.
+      if (qrId) {
+        if (mongoose.Types.ObjectId.isValid(qrId as string)) {
+          const city = await cityModel.findById(qrId);
+          if (city) {
+            finalSelectedCity = [qrId as string];
+          } else {
+            const employees = await managedEmployeeModel.find({ createdBy: qrId as string }, { _id: 1 });
+            creatorIdFilter = [qrId as string, ...employees.map((e: any) => e._id.toString())];
+          }
+        }
+      } 
+      // First check if the request asks for a specific creator's jobs (e.g. from QR scan)
+      else if (creatorId) {
+        // If they ask for a creator's jobs, we must also include their employees' jobs
+        const employees = await managedEmployeeModel.find({ createdBy: creatorId as string }, { _id: 1 });
+        creatorIdFilter = [creatorId as string, ...employees.map((e: any) => e._id.toString())];
+      } 
+      // Otherwise, fallback to the logged in user's permissions (if admin panel)
+      else if (permissions !== undefined) {
         const isManagedEmployee = position !== undefined || name !== undefined;
         if (isManagedEmployee) {
           creatorIdFilter = [_id.toString()];
@@ -50,7 +73,7 @@ class JobController {
         Number(pageNo),
         filter as string,
         Number(recordPerPage),
-        slectedCity as string[],
+        finalSelectedCity,
         isFillter as string[],
         isFrontend as string,
         jobType as string[],
