@@ -12,7 +12,7 @@ export interface Employer {
   phoneNo: string;
   address: string;
   zipCode: string;
-  companyLogo: mongoose.Schema.Types.ObjectId;
+  companyLogo?: mongoose.Schema.Types.ObjectId;
   companyDescription: string;
   videoLink: string[];
   city: mongoose.Schema.Types.ObjectId;
@@ -57,8 +57,9 @@ const employerSchema = new Schema(
     zipCode: { type: String, required: false },
     companyLogo: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: false,
       ref: "Media",
+      default: null,
     },
     companyDescription: { type: String, required: true },
     videoLink: { type: [{ type: String }], required: false },
