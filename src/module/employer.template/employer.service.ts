@@ -258,8 +258,7 @@ export class EmployerService {
       if (card.image) {
         const media = await this.fileHandler.saveFileAndCreateMedia(card.image);
         card.image = media?.toString();
-      }
-      if (card.oldImage) {
+      } else if (card.oldImage) {
         card.image = card.oldImage.toString();
       }
     }

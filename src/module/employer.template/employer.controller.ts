@@ -104,7 +104,7 @@ class EmployerController {
 
   public updateEmployerById = async (req: Request, res: Response) => {
     try {
-      const companyImages = req.files?.companyImages;
+      const companyImages = req.files?.companyImages || req.files?.["companyImages[]"];
       const { id } = req.params;
       // Sanitize and convert companyLogo
       req.body.companyLogo = this.objectIdConverter.convertToObjectId(req.body.companyLogo);
@@ -114,9 +114,7 @@ class EmployerController {
           req.files.companyLogo,
         );
         req.body.companyLogo = mediaId ?? null;
-      }
-
-      if (req?.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
+      } else if (req?.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
         req.body.companyLogo = this.objectIdConverter.convertToObjectId(req.body.oldCompanyLogo);
       }
       const updatedEmployer =
@@ -124,23 +122,6 @@ class EmployerController {
           ...req.body,
           ...req.files,
         });
-      if (Array.isArray(req.body.oldCompanyImages)) {
-        // If array, loop through each item
-        for (const image of req.body.oldCompanyImages) {
-          const mediaId = new mongoose.Types.ObjectId(image); // Convert each image to ObjectId
-          await companyImageModel.create({
-            imageId: mediaId,
-            companyId: id,
-          });
-        }
-      } else if (typeof req.body.oldCompanyImages === "string") {
-        // If it's a string, handle it as a single image
-        const mediaId = new mongoose.Types.ObjectId(req.body.oldCompanyImages); // Convert to ObjectId
-        await companyImageModel.create({
-          imageId: mediaId,
-          companyId: id,
-        });
-      }
       const { removedFile } = req.body;
       if (updatedEmployer) {
         await this.companyImageHandler.saveFileAndCreateMedia(
@@ -178,7 +159,7 @@ class EmployerController {
   public addEmployer = async (req: Request, res: Response) => {
     try {
       const { _id } = req.user;
-      const companyImages = req.files?.["companyImages[]"];
+      const companyImages = req.files?.companyImages || req.files?.["companyImages[]"];
       const {
         industryName,
         contactPerson,
@@ -203,8 +184,7 @@ class EmployerController {
           req.files.companyLogo,
         );
         companyLogo = mediaId ?? null;
-      }
-      if (req.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
+      } else if (req.body.oldCompanyLogo && req.body.oldCompanyLogo !== "") {
         companyLogo = this.objectIdConverter.convertToObjectId(req.body.oldCompanyLogo);
       }
 
