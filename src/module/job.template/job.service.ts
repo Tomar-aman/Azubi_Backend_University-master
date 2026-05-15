@@ -179,6 +179,7 @@ export class JobService {
                 _id: 1,
                 companyName: 1,
                 companyLogo: "$companyLogo.filepath",
+                address: 1,
               },
             },
           ],
@@ -290,15 +291,36 @@ export class JobService {
             $first: "$industryInfo.industryName",
           },
           status: { $first: "$status" },
-          company: { $first: "$company.companyName" },
-          companyLogo: { $first: "$company.companyLogo" },
-          companyId: { $first: "$company._id" },
+          _companyName: { $first: "$company.companyName" },
+          _companyLogo: { $first: "$company.companyLogo" },
+          _companyId: { $first: "$company._id" },
+          _companyAddress: { $first: "$company.address" },
           startDate: { $first: "$startDate" },
           count: { $first: "$count" },
           jobType: { $first: "$jobTypeDoc.jobTypeName" },
           deviceId: {
             $first: "$jobApplicationForDevice.deviceId",
           },
+        },
+      },
+      {
+        $addFields: {
+          company: {
+            name: "$_companyName",
+            logo: "$_companyLogo",
+            id: "$_companyId",
+            address: "$_companyAddress",
+            industry: "$industryName",
+          },
+        },
+      },
+      {
+        $project: {
+          _companyName: 0,
+          _companyLogo: 0,
+          _companyId: 0,
+          _companyAddress: 0,
+          industryName: 0,
         },
       },
       convertedJobType && {
