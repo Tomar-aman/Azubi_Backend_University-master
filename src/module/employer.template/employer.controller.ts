@@ -328,9 +328,9 @@ class EmployerController {
   public getCompanyDetail = async (req: Request, res: Response) => {
     try {
       const { companyId } = req.params;
-      const data =
-        await this.employerService.getCompanyDetailService(companyId);
-      res.sendSuccess200Response(" success", data);
+      const employer = await this.employerService.getCompanyDetailService(companyId);
+      const jobs = await this.employerService.getJobsListByCompanyIdService(companyId);
+      res.sendSuccess200Response(" success", { employer, jobs });
     } catch (error) {
       res.sendErrorResponse("failed", error);
     }

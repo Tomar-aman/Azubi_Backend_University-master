@@ -271,32 +271,24 @@ class JobController {
       if (!req.body.startTime) {
         req.body.startTime = null;
       }
-      try {
-        if (Array.isArray(req.body.jobsImages) && req.body.jobsImages.length) {
-          req.body.jobsImages = req.body.jobsImages.map((item: string) => {
-            return new mongoose.Types.ObjectId(item);
-          });
-        }
-      } catch (error) {
-        console.log({ error });
+      // Consolidate image handling
+      let finalJobsImages: any[] = [];
+      if (Array.isArray(req.body.jobsImages)) {
+        finalJobsImages = [...req.body.jobsImages];
+      } else if (req.body.jobsImages) {
+        finalJobsImages.push(req.body.jobsImages);
       }
+
       if (Array.isArray(req.body.oldJobImage)) {
-        console.log("---------------------------");
-        // If oldJobImage is an array, map and create ObjectId
-        req.body.jobsImages = req.body.oldJobImage.map((item: string) => {
-          return new mongoose.Types.ObjectId(item);
-        });
-      } else {
-        console.log("req.body.oldJobImage", req.body.oldJobImage);
-        // If oldJobImage is not an array, do something else
-        // For example, log an error, or handle the case where it's a single value or missing
-        console.log("oldJobImage is not an array");
-        // Handle single value (if needed)
-        req.body.jobsImages = [
-          new mongoose.Types.ObjectId(req.body.oldJobImage),
-        ];
-        console.log("Second Console---------------------------");
+        finalJobsImages = [...finalJobsImages, ...req.body.oldJobImage];
+      } else if (req.body.oldJobImage) {
+        finalJobsImages.push(req.body.oldJobImage);
       }
+
+      // Convert all to ObjectId and filter out duplicates or invalid IDs
+      req.body.jobsImages = finalJobsImages
+        .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+        .map(id => (id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(id)));
 
       const { startDate } = req.body;
       // eslint-disable-next-line no-empty
@@ -364,19 +356,13 @@ class JobController {
       );
       if (Array.isArray(req.body.jobsImages) && req.body.jobsImages.length) {
         // If jobsImages is an array, create multiple entries
-        const images = req.body.jobsImages.map((item: string) => ({
-          imageId: new mongoose.Types.ObjectId(item),
+        const images = req.body.jobsImages.map((item: any) => ({
+          imageId: item, // Already converted to ObjectId above
           jobId: newJob._id,
         }));
 
         // Save all images at once
         await jobImagesModel.insertMany(images);
-      } else if (req.body.jobsImages) {
-        // If jobsImages is not an array, save a single image
-        await jobImagesModel.create({
-          imageId: new mongoose.Types.ObjectId(req.body.jobsImages),
-          jobId: newJob._id,
-        });
       }
 
       const { removedFile } = req.body;

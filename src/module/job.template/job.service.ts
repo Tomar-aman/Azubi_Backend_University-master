@@ -25,9 +25,11 @@ import path from "path";
 import emailService from "../../utils/emailService";
 import JobTypesModel from "../../models/jobType";
 import { FileHandler } from "../../utils/fileHandler";
+
 export class JobService {
   private readonly objectIdConverter: ObjectIdConverter;
   private readonly fileHandler: FileHandler;
+
   constructor() {
     this.fileHandler = new FileHandler();
     this.objectIdConverter = new ObjectIdConverter();
@@ -46,100 +48,145 @@ export class JobService {
     deviceId: string,
     creatorIdFilter: string[] | null = null,
   ) {
-    recordPerPage = recordPerPage ?? 10;
-    recordPerPage = recordPerPage > 0 ? recordPerPage : 10;
-    const filterQuery = {};
-    let convertedJobType: any = [];
-    let queryForJobType = {};
-    let queryForDate = {};
-    let queryForDeviceId: any = [];
-    if (deviceId) {
-      queryForDeviceId = [
-        {
-          $lookup: {
-            from: applicationModel.collection.name,
-            let: { jobIds: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      {
-                        $eq: ["$deviceId", deviceId],
-                      },
-                      {
-                        $eq: ["$jobId", "$$jobIds"],
-                      },
-                    ],
-                  },
-                },
-              },
-            ],
-            as: "jobApplicationForDevice",
-          },
-        },
-        {
-          $unwind: {
-            path: "$jobApplicationForDevice",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-      ];
-    }
-    if (jobType) {
-      convertedJobType = this.objectIdConverter.convertToObjectId(
-        jobType as any,
-      );
-      queryForJobType = {
-        $expr: {
-          $eq: ["$jobTypeId", convertedJobType],
-        },
-      };
-    }
-    if (date) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      queryForDate = {
-        $expr: {
-          $gt: ["$createdAt", new Date(date)],
-        },
-      };
-    }
-    if (industry) {
-      if (typeof industry === "string") {
-        industry = [industry];
-      }
-      filterQuery["industryName"] = {
-        $in: industry.map((item) => {
-          return this.objectIdConverter.convertToObjectId(item);
-        }),
-      };
-    }
-    if (slectedCity) {
-      if (typeof slectedCity === "string") {
-        slectedCity = [slectedCity];
-      }
-      filterQuery["cityInfo._id"] = {
-        $in: slectedCity.map((data: any) =>
-          this.objectIdConverter.convertToObjectId(data),
-        ),
-      };
-    }
+    recordPerPage = recordPerPage ? Number(recordPerPage) : 10;
+    pageNo = pageNo ? Number(pageNo) : 1;
 
     const matchStage: any = { isDeleted: false };
     if (creatorIdFilter) {
       matchStage.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
     }
 
-    const pipeline: any = [
+    if (isFrontend === "true") {
+      matchStage.status = true;
+    }
+
+    const pipeline: any[] = [
+      { $match: matchStage },
       {
-        $match: matchStage,
-      },
-      {
-        $match: {
-          ...(isFrontend ? { status: true } : {}),
+        $lookup: {
+          from: employerModel.collection.name,
+          localField: "company",
+          foreignField: "_id",
+          as: "companyInfo",
         },
       },
-      ...queryForDeviceId,
+      { $unwind: { path: "$companyInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: mediaModel.collection.name,
+          localField: "companyInfo.companyLogo",
+          foreignField: "_id",
+          as: "logoInfo",
+        },
+      },
+      { $unwind: { path: "$logoInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: industriesModel.collection.name,
+          localField: "industryName",
+          foreignField: "_id",
+          as: "industryInfo",
+        },
+      },
+      { $unwind: { path: "$industryInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: cityModel.collection.name,
+          localField: "city",
+          foreignField: "_id",
+          as: "cityDetails",
+        },
+      },
+      {
+        $lookup: {
+          from: jobTypesModel.collection.name,
+          localField: "jobType",
+          foreignField: "_id",
+          as: "jobTypeInfo",
+        },
+      },
+      { $unwind: { path: "$jobTypeInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          companyName: "$companyInfo.companyName",
+          companyLogo: "$logoInfo.filepath",
+          industryName: "$industryInfo.industryName",
+          jobTypeName: "$jobTypeInfo.jobTypeName",
+          cityNames: "$cityDetails.name",
+          company: {
+            name: "$companyInfo.companyName",
+            logo: "$logoInfo.filepath",
+            id: "$companyInfo._id",
+            address: "$companyInfo.address",
+            industry: "$industryInfo.industryName",
+          },
+        },
+      },
+    ];
+
+    if (searchValue) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { jobTitle: { $regex: searchValue, $options: "i" } },
+            { companyName: { $regex: searchValue, $options: "i" } },
+            { industryName: { $regex: searchValue, $options: "i" } },
+            { cityNames: { $regex: searchValue, $options: "i" } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push({
+      $sort: {
+        [filter === "startDate" ? "startDate" : "createdAt"]: filter === "DSC" ? 1 : -1,
+      },
+    });
+
+    pipeline.push({
+      $skip: isFrontend === "true" ? 0 : (pageNo - 1) * recordPerPage || 0,
+    });
+
+    pipeline.push({
+      $limit: isFrontend === "true" ? pageNo * recordPerPage : recordPerPage || 0,
+    });
+
+    try {
+      const result = await jobModel.aggregate(pipeline).allowDiskUse(true).exec();
+      
+      // Map to old structure for compatibility
+      const formattedData = result.map(job => ({
+        ...job,
+        city: job.cityNames || [], // Maintain array for frontend loop
+        jobType: job.jobTypeName,
+      }));
+
+      return formattedData;
+    } catch (error) {
+      console.log("Aggregation error:", error);
+      throw error;
+    }
+  }
+
+  public async getCount(creatorIdFilter: string[] | null = null) {
+    const matchQuery: any = { isDeleted: false };
+    if (creatorIdFilter) {
+      matchQuery.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
+    }
+    const jobCount = await jobModel.countDocuments(matchQuery);
+    return jobCount;
+  }
+
+  public async getJobByIdService(id: string) {
+    const jobId = this.objectIdConverter.convertToObjectId(id);
+    const [job] = await jobModel.aggregate([
+      {
+        $match: {
+          $expr: {
+            $eq: ["$_id", jobId],
+          },
+        },
+      },
       {
         $lookup: {
           from: employerModel.collection.name,
@@ -194,344 +241,6 @@ export class JobService {
       },
       {
         $lookup: {
-          from: cityModel.collection.name,
-          localField: "city",
-          foreignField: "_id",
-          as: "cityInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: industriesModel.collection.name,
-          localField: "industryName",
-          foreignField: "_id",
-          as: "industryInfo",
-        },
-      },
-      {
-        $unwind: {
-          path: "$industryInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      {
-        $lookup: {
-          from: applicationModel.collection.name,
-          let: { jobIds: "$_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ["$jobId", "$$jobIds"],
-                },
-              },
-            },
-
-            {
-              $count: "applicationCount",
-            },
-          ],
-          as: "count",
-        },
-      },
-
-      {
-        $unwind: {
-          path: "$count",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $match: {
-          ...filterQuery,
-        },
-      },
-      {
-        $unwind: {
-          path: "$cityInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      {
-        $lookup: {
-          from: JobTypesModel.collection.name,
-          let: { jobTypeId: "$jobType" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ["$_id", "$$jobTypeId"],
-                },
-              },
-            },
-          ],
-          as: "jobTypeDoc",
-        },
-      },
-      {
-        $unwind: {
-          path: "$jobTypeDoc",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $group: {
-          _id: "$_id", // Group by the document's _id field or any other unique identifier
-          jobTypeId: { $first: "$jobType" },
-          locationUrl: { $first: "$locationUrl" },
-          locationField: { $first: "$locationField" },
-          jobTitle: { $first: "$jobTitle" },
-          embeddedCode: { $first: "$embeddedCode" },
-          isDesktopView: { $first: "$isDesktopView" },
-          createdAt: { $first: "$createdAt" },
-          city: { $addToSet: "$cityInfo.name" },
-          industryName: {
-            $first: "$industryInfo.industryName",
-          },
-          status: { $first: "$status" },
-          _companyName: { $first: "$company.companyName" },
-          _companyLogo: { $first: "$company.companyLogo" },
-          _companyId: { $first: "$company._id" },
-          _companyAddress: { $first: "$company.address" },
-          startDate: { $first: "$startDate" },
-          count: { $first: "$count" },
-          jobType: { $first: "$jobTypeDoc.jobTypeName" },
-          deviceId: {
-            $first: "$jobApplicationForDevice.deviceId",
-          },
-        },
-      },
-      {
-        $addFields: {
-          company: {
-            name: "$_companyName",
-            logo: "$_companyLogo",
-            id: "$_companyId",
-            address: "$_companyAddress",
-            industry: "$industryName",
-          },
-        },
-      },
-      {
-        $project: {
-          _companyName: 0,
-          _companyLogo: 0,
-          _companyId: 0,
-          _companyAddress: 0,
-          industryName: 0,
-        },
-      },
-      convertedJobType && {
-        $match: {
-          ...queryForJobType,
-        },
-      },
-      {
-        $match: {
-          ...queryForDate,
-        },
-      },
-      deviceId && {
-        $match: {
-          $expr: { $eq: ["$deviceId", deviceId] },
-        },
-      },
-      // End
-      {
-        $sort: {
-          [!filter ? "createdAt" : "startDate"]: filter === "DSC" ? 1 : -1,
-        },
-      },
-      searchValue && {
-        $match: {
-          $or: [
-            { jobTitle: { $regex: new RegExp(searchValue, "i") } },
-            { city: { $regex: new RegExp(searchValue, "i") } },
-            { industryName: { $regex: new RegExp(searchValue, "i") } },
-            { company: { $regex: new RegExp(searchValue, "i") } },
-          ],
-        },
-      },
-      {
-        $skip: isFrontend ? 0 : (pageNo - 1) * recordPerPage || 0,
-      },
-      {
-        $limit: isFrontend ? pageNo * recordPerPage : recordPerPage || 0,
-      },
-    ].filter(Boolean);
-
-    try {
-      const result = await jobModel.aggregate(pipeline).exec();
-      return result;
-    } catch (error) {
-      console.log({ error });
-      return error; // Rethrow the error to propagate it up the stack
-    }
-  }
-
-  public async getCount(creatorIdFilter: string[] | null = null) {
-    const matchQuery: any = { isDeleted: false };
-    if (creatorIdFilter) {
-      matchQuery.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
-    }
-    const jobCount = await jobModel.find(matchQuery).count();
-    return jobCount;
-  }
-
-  public async getJobByIdService(id: string) {
-    const jobId = this.objectIdConverter.convertToObjectId(id);
-    const [job] = await jobModel.aggregate([
-      {
-        $match: {
-          $expr: {
-            $eq: ["$_id", jobId],
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: employerModel.collection.name,
-          let: { companyId: "$company" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ["$_id", "$$companyId"],
-                },
-              },
-            },
-            {
-              $lookup: {
-                from: industriesModel.collection.name,
-                let: { industryId: "$industryName" },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ["$_id", "$$industryId"],
-                      },
-                    },
-                  },
-                ],
-                as: "industryName",
-              },
-            },
-            {
-              $unwind: {
-                path: "$industryName",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-            {
-              $addFields: {
-                industryName: {
-                  $cond: {
-                    if: "$industryName",
-                    then: "$industryName.industryName",
-                    else: "",
-                  },
-                },
-              },
-            },
-            {
-              $lookup: {
-                from: cityModel.collection.name,
-                let: { cityId: "$city" },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ["$_id", "$$cityId"],
-                      },
-                    },
-                  },
-                  {
-                    $project: {
-                      _id: 1,
-                      name: 1,
-                      address: 1,
-                      zipCode: 1,
-                      directionLink: 1,
-                      startTime: 1,
-                      endTime: 1,
-                    },
-                  },
-                ],
-                as: "city",
-              },
-            },
-            {
-              $unwind: {
-                path: "$city",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-            {
-              $addFields: {
-                location: {
-                  $cond: {
-                    if: "$city",
-                    then: "$city.name",
-                    else: "",
-                  },
-                },
-              },
-            },
-            {
-              $lookup: {
-                from: mediaModel.collection.name,
-                let: { logoId: "$companyLogo" },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ["$_id", "$$logoId"],
-                      },
-                    },
-                  },
-                ],
-                as: "companyLogo",
-              },
-            },
-            {
-              $unwind: {
-                path: "$companyLogo",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-                companyName: 1,
-                companyLogo: 1,
-                videoLink: 1,
-                industryName: 1,
-                location: 1,
-                companyDescription: 1,
-                jobDescription: 1,
-                phoneNo: 1,
-                website: 1,
-                email: 1,
-                address: 1,
-                mapUrl: 1,
-                additionalData: 1,
-                region: 1,
-              },
-            },
-          ],
-          as: "company",
-        },
-      },
-      {
-        $unwind: {
-          path: "$company",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $lookup: {
           from: industriesModel.collection.name,
           let: { industryId: "$industryName" },
           pipeline: [
@@ -560,6 +269,33 @@ export class JobService {
       },
       {
         $lookup: {
+          from: jobTypesModel.collection.name,
+          let: { typeId: "$jobType" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$typeId"] },
+              },
+            },
+            {
+              $project: {
+                name: "$jobTypeName",
+                jobTypeName: 1,
+                _id: 1,
+              },
+            },
+          ],
+          as: "jobType",
+        },
+      },
+      {
+        $unwind: {
+          path: "$jobType",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
           from: beginningsModel.collection.name,
           let: { beginningId: "$beginning" },
           pipeline: [
@@ -573,6 +309,7 @@ export class JobService {
             {
               $project: {
                 name: 1,
+                beginningName: "$name",
                 _id: 1,
               },
             },
@@ -601,6 +338,7 @@ export class JobService {
             {
               $project: {
                 name: 1,
+                trainingName: "$name",
                 _id: 1,
               },
             },
@@ -629,6 +367,7 @@ export class JobService {
             {
               $project: {
                 name: 1,
+                federalStateName: "$name",
                 _id: 1,
               },
             },
@@ -645,33 +384,22 @@ export class JobService {
       {
         $lookup: {
           from: cityModel.collection.name,
-          let: { cityId: "$city" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ["$_id", "$$cityId"],
-                },
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-                name: 1,
-                address: 1,
-                zipCode: 1,
-                directionLink: 1,
-                startTime: 1,
-                endTime: 1,
-              },
-            },
-          ],
-          as: "city",
+          localField: "city",
+          foreignField: "_id",
+          as: "cityDetail",
+        },
+      },
+      {
+        $lookup: {
+          from: regionModel.collection.name,
+          localField: "region",
+          foreignField: "_id",
+          as: "regionDetail",
         },
       },
       {
         $unwind: {
-          path: "$city",
+          path: "$regionDetail",
           preserveNullAndEmptyArrays: true,
         },
       },
@@ -783,166 +511,92 @@ export class JobService {
                 },
               },
             },
-          ],
-          as: "jobImage",
-        },
-      },
-      {
-        $unwind: {
-          path: "$jobImage",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $lookup: {
-          from: mediaModel.collection.name,
-          let: { documentId: "$jobImage.imageId" },
-          pipeline: [
             {
-              $match: {
-                $expr: {
-                  $eq: ["$_id", "$$documentId"],
-                },
+              $lookup: {
+                from: mediaModel.collection.name,
+                let: { documentId: "$imageId" },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: { $eq: ["$_id", "$$documentId"] },
+                    },
+                  },
+                  {
+                    $project: {
+                      createdAt: 0,
+                      updatedAt: 0,
+                      __v: 0,
+                    },
+                  },
+                ],
+                as: "jobImages",
+              },
+            },
+            {
+              $unwind: {
+                path: "$jobImages",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                jobImages: 1,
               },
             },
           ],
-          as: "Images",
+          as: "jobImages",
         },
       },
       {
-        $unwind: {
-          path: "$Images",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      // start
-      {
-        $lookup: {
-          from: jobTypesModel.collection.name,
-          let: { documentId: "$jobType" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    {
-                      $eq: ["$_id", "$$documentId"],
-                    },
-                    {
-                      $eq: ["$isDeleted", false],
-                    },
-                  ],
-                },
-              },
-            },
-          ],
-          as: "jobTypeDetail",
-        },
-      },
-      {
-        $unwind: {
-          path: "$jobTypeDetail",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      // End
-      {
-        $lookup: {
-          from: regionModel.collection.name,
-          let: { documentId: "$region" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    {
-                      $eq: ["$_id", "$$documentId"],
-                    },
-                  ],
-                },
-              },
-            },
-          ],
-          as: "regionDetail",
-        },
-      },
-      {
-        $unwind: {
-          path: "$regionDetail",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $group: {
-          _id: "$_id",
-          city: {
-            $addToSet: "$city",
-          },
-          cityDetail: {
-            $addToSet: "$city",
-          },
-          regionDetail: {
-            $first: "$regionDetail",
-          },
-          jobImages: { $addToSet: "$Images" },
-          industryName: { $first: "$industryName" },
-          isDesktopView: { $first: "$isDesktopView" },
-          beginning: { $first: "$beginning" },
-          training: { $first: "$training" },
-          federalState: { $first: "$federalState" },
-          jobType: { $first: "$jobType" },
-          company: { $first: "$company" },
-          jobTitle: { $first: "$jobTitle" },
-          embeddedCode: { $first: "$embeddedCode" },
-          startDate: { $first: "$startDate" },
-          email: { $first: "$email" },
-          address: { $first: "$address" },
-          mapUrl: { $first: "$mapUrl" },
-          zipCode: { $first: "$zipCode" },
-          jobDescription: { $first: "$jobDescription" },
-          status: { $first: "$status" },
-          isDeleted: { $first: "$isDeleted" },
-          createdBy: { $first: "$createdBy" },
-          createdAt: { $first: "$createdAt" },
-          updatedAt: { $first: "$updatedAt" },
-          attachments: { $first: "$attachments" },
-          companyImages: { $addToSet: "$companyImages" },
-          additionalData: { $addToSet: "$additionalData" },
-          videoLink: { $first: "$videoLink" },
-          jobTypeName: { $first: "$jobTypeDetail.jobTypeName" },
-          locationField: { $first: "$locationField" },
-          locationUrl: { $first: "$locationUrl" },
+        $project: {
+          _id: 1,
+          jobType: 1,
+          videoLink: 1,
+          city: 1,
+          cityDetail: 1,
+          industryName: 1,
+          company: 1,
+          jobTitle: 1,
+          embeddedCode: 1,
+          startDate: 1,
+          email: 1,
+          additionalEmail: 1,
+          address: 1,
+          mapUrl: 1,
+          zipCode: 1,
+          locationField: 1,
+          locationUrl: 1,
+          jobDescription: 1,
+          isDesktopView: 1,
+          training: 1,
+          federalState: 1,
+          beginning: 1,
+          additionalData: 1,
+          status: 1,
+          isDeleted: 1,
+          region: 1,
+          regionDetail: 1,
+          createdBy: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          attachments: 1,
+          companyImages: 1,
+          jobImages: 1,
         },
       },
     ]);
-    const additionalData = await employerModel
-      .findById(job.company._id)
-      .populate([{ path: "additionalData.image" }])
-      .lean();
-    const jobAddtionalData = await jobModel
-      .findById(id)
-      .populate([{ path: "additionalData.image" }])
-      .lean();
-    //@ts-ignore
-    job.company.additionalData = additionalData?.additionalData || [];
-    //@ts-ignore
-    job.additionalData = jobAddtionalData?.additionalData || [];
     return job;
   }
 
-  public async updateJobByIdService(
-    id: string,
-    updatedData: Job | any,
-    additionalData: any,
-  ) {
-    //delete all keys that not start with object
-    for (let itm in additionalData) {
-      if (!itm.startsWith("objects")) delete additionalData[itm];
+  public async updateJobByIdService(id: string, updatedData: any, additionalData: any) {
+    for (const itm in additionalData) {
+      if (!itm.startsWith("objects")) {
+        delete additionalData[itm];
+      }
     }
-    //transform card data
     let transformedCardContainImage: any[] = [];
     let idx = 0;
-    for (let _reqData in additionalData) {
+    for (const _reqData in additionalData) {
       transformedCardContainImage.push({
         _id: additionalData[`objects[${idx}][_id]`],
         image: additionalData[`objects[${idx}][image]`] ?? null,
@@ -951,19 +605,14 @@ export class JobService {
       });
       idx = idx + 1;
     }
-
-    /*filter the actual object comes from frontend*/
-    transformedCardContainImage = transformedCardContainImage.filter(
-      (itm: any) => itm._id,
-    );
-
-    /* after filter now save the image in backend and attached mediaId with image property*/
-    for (let card of transformedCardContainImage) {
+    transformedCardContainImage = transformedCardContainImage.filter((itm) => itm._id);
+    for (const card of transformedCardContainImage) {
       if (card.image) {
         const media = await this.fileHandler.saveFileAndCreateMedia(card.image);
         card.image = media?.toString();
       }
     }
+
     if (updatedData.federalState === "undefined") {
       updatedData.federalState = null;
     }
@@ -973,25 +622,15 @@ export class JobService {
     if (updatedData.training === "undefined") {
       updatedData.training = null;
     }
-    const updatedJob = await jobModel.findByIdAndUpdate(
-      id,
-      { $set: { ...updatedData } },
-      {
-        new: true,
-      },
-    );
 
-    /* now retrieve cards from db */
-    //@ts-ignore
-    const oldCards: any[] = updatedJob?.additionalData || [];
-    /* push update frontend cards over old cards */
-    /* first check transformedCardContainImage cards exists in Cards */
+    const updatedJob = await jobModel.findByIdAndUpdate(id, { $set: { ...updatedData } }, {
+      new: true,
+    });
+
+    const oldCards = updatedJob?.additionalData || [];
     let finalCardForDocument: any[] = [];
-    for (let newCard of transformedCardContainImage) {
-      /* this line find the newCard in oldCards */
-      const oldCard = oldCards.find(
-        (card) => card._id?.toString() === newCard._id.toString(),
-      );
+    for (const newCard of transformedCardContainImage) {
+      const oldCard = oldCards.find((card) => card._id?.toString() === newCard._id.toString());
       if (newCard?.oldImage) {
         newCard.image = newCard.oldImage;
       }
@@ -999,7 +638,6 @@ export class JobService {
         newCard.image = oldCard.oldImage;
       }
       if (oldCard) {
-        /* if old card is exists then push it and replace image if contains in newCard*/
         finalCardForDocument.push({
           ...newCard,
           image: newCard?.image || oldCard?.image || null,
@@ -1010,55 +648,39 @@ export class JobService {
         });
       }
     }
-
-    /* remove all _id */
-    finalCardForDocument = finalCardForDocument.map(
-      ({ _id, ...restData }) => restData,
-    );
+    finalCardForDocument = finalCardForDocument.map(({ _id, ...restData }) => restData);
     if (updatedData.oldtransformedCardContainImage) {
       finalCardForDocument = updatedData.oldtransformedCardContainImage;
     }
-    const finalUpdate = await jobModel.findByIdAndUpdate(
-      id,
-      {
-        additionalData: finalCardForDocument,
-      },
-      {
-        new: true,
-      },
-    );
-
+    const finalUpdate = await jobModel.findByIdAndUpdate(id, {
+      additionalData: finalCardForDocument,
+    }, {
+      new: true,
+    });
     return finalUpdate;
   }
 
   public async deleteJobByIdService(id: string) {
-    const deletedJob = await jobModel.findByIdAndUpdate(
-      id,
-      { $set: { isDeleted: true } },
-      { new: true },
-    );
+    const deletedJob = await jobModel.findByIdAndUpdate(id, { $set: { isDeleted: true } }, { new: true });
     return deletedJob;
   }
 
-  public async addJobService(jobData: Job, additionalData: any) {
+  public async addJobService(jobData: any, additionalData: any) {
     const desktopViewPayload: any = {};
-
     if (jobData.isDesktopView) {
       desktopViewPayload.training = jobData.training;
       desktopViewPayload.beginning = jobData.beginning;
       desktopViewPayload.federalState = jobData.federalState;
     }
     const { training, beginning, federalState, ...rest } = jobData;
-
-    //delete all keys that not start with object
-    for (let itm in additionalData) {
-      if (!itm.startsWith("objects")) delete additionalData[itm];
+    for (const itm in additionalData) {
+      if (!itm.startsWith("objects")) {
+        delete additionalData[itm];
+      }
     }
-
-    //transform card data
     let transformedCardContainImage: any[] = [];
     let idx = 0;
-    for (let _reqData in additionalData) {
+    for (const _reqData in additionalData) {
       transformedCardContainImage.push({
         _id: additionalData[`objects[${idx}][_id]`],
         image: additionalData[`objects[${idx}][image]`] ?? null,
@@ -1067,14 +689,8 @@ export class JobService {
       });
       idx = idx + 1;
     }
-
-    /*filter the actual object comes from frontend*/
-    transformedCardContainImage = transformedCardContainImage.filter(
-      (itm: any) => itm._id,
-    );
-
-    /* after filter now save the image in backend and attached mediaId with image property*/
-    for (let card of transformedCardContainImage) {
+    transformedCardContainImage = transformedCardContainImage.filter((itm) => itm._id);
+    for (const card of transformedCardContainImage) {
       if (card.image) {
         const media = await this.fileHandler.saveFileAndCreateMedia(card.image);
         card.image = media?.toString();
@@ -1083,11 +699,7 @@ export class JobService {
         card.image = card.oldImage.oldImage?.toString();
       }
     }
-
-    /* remove all _id */
-    transformedCardContainImage = transformedCardContainImage.map(
-      ({ _id, ...restData }) => restData,
-    );
+    transformedCardContainImage = transformedCardContainImage.map(({ _id, ...restData }) => restData);
     if (jobData.oldtransformedCardContainImage) {
       transformedCardContainImage = jobData.oldtransformedCardContainImage;
     }
@@ -1228,32 +840,6 @@ export class JobService {
             ],
           },
         },
-        // {
-        //   $match: {
-        //     $expr: {
-        //       $or: [
-        //         {
-        //           $eq: [searchValue, null],
-        //         },
-        //         {
-        //           $eq: [searchValue, ""],
-        //         },
-        //         {
-        //           $regexMatch: {
-        //             input: { $ifNull: ["$company.companyName", ""] },
-        //             regex: searchValue,
-        //           },
-        //         },
-        //         {
-        //           $regexMatch: {
-        //             input: { $ifNull: ["$jobTitle", ""] },
-        //             regex: searchValue,
-        //           },
-        //         },
-        //       ],
-        //     },
-        //   },
-        // },
         {
           $project: {
             company: "$company.companyName",
@@ -1272,8 +858,7 @@ export class JobService {
       const jobDetail = await jobModel
         .findById(payload.jobId)
         .populate("company");
-
-      let files: any = [];
+      let files: any[] = [];
       if (attachments) {
         if (Array.isArray(attachments)) {
           files = attachments.map((file: any) => ({
@@ -1288,32 +873,25 @@ export class JobService {
         }
       }
       const adminDetail = await userModel.findOne();
-      /* get email content */
       const emailContent = await emailContentModel.findOne();
       const bccContent = await smtpSettingModel.find();
-      const bcc: string[] = [
+      const bcc = [
         "aniketshivhare92@gmail.com",
-        // "karriere@azubiregional.de",
         `${bccContent[0]?.to}`,
       ];
       if (jobDetail) {
-        // bcc.push(jobDetail.email);
       }
       if (adminDetail) {
         bcc.push(adminDetail.email);
       }
-      const htmlContent = await ejs.renderFile(
-        path.join(path.resolve(path.dirname("")), "views", "application.ejs"),
-        {
-          jobTitle: jobDetail?.jobTitle,
-          payload,
-          emailContent: emailContent?.application,
-          isDesktopView: jobDetail?.isDesktopView || false,
-          jobUrl: `${process.env.WEB_FRONTEND_URL}/jobs-board/${jobDetail?._id}`,
-          //@ts-ignore
-          companyName: jobDetail?.company.companyName,
-        },
-      );
+      const htmlContent = await ejs.renderFile(path.join(path.resolve(path.dirname("")), "views", "application.ejs"), {
+        jobTitle: jobDetail?.jobTitle,
+        payload,
+        emailContent: emailContent?.application,
+        isDesktopView: jobDetail?.isDesktopView || false,
+        jobUrl: `${process.env.WEB_FRONTEND_URL}/jobs-board/${jobDetail?._id}`,
+        companyName: (jobDetail?.company as any)?.companyName,
+      });
       await applicationModel.create(payload);
       emailService.sendEmail({
         bcc,
@@ -1321,7 +899,7 @@ export class JobService {
         html: htmlContent,
         attachments: files,
       });
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error?.message || "");
     }
   }
@@ -1334,7 +912,7 @@ export class JobService {
   }
 
   public async getApplicationCount() {
-    const count = await applicationModel.count();
+    const count = await applicationModel.countDocuments();
     return count;
   }
 }

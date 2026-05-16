@@ -9,6 +9,7 @@ import {
   jobModel,
   jobTypesModel,
   mediaModel,
+  trainingsModel,
   userModel,
 } from "../../models";
 import { type Employer } from "src/models/employer";
@@ -569,6 +570,7 @@ export class EmployerService {
           companyName: { $first: "$companyName" },
           companyLogo: { $first: "$companyLogo.filepath" },
           location: { $first: "$cityDetails.name" },
+          address: { $first: "$address" },
           description: { $first: "$companyDescription" },
           mapUrl: { $first: "$mapUrl" },
           locationUrl: { $first: "$locationUrl" },
@@ -949,13 +951,43 @@ export class EmployerService {
               this.objectIdConverter.convertToObjectId(companyId),
             ],
           },
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: cityModel.collection.name,
+          localField: "city",
+          foreignField: "_id",
+          as: "city",
+        },
+      },
+      {
+        $unwind: {
+          path: "$city",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: jobTypesModel.collection.name,
+          localField: "jobType",
+          foreignField: "_id",
+          as: "jobType",
+        },
+      },
+      {
+        $unwind: {
+          path: "$jobType",
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
         $project: {
-          _id: 0,
-          id: "$_id",
-          label: "$jobTitle",
+          _id: 1,
+          jobTitle: 1,
+          city: { name: 1 },
+          jobType: { jobTypeName: 1 },
         },
       },
     ]);
