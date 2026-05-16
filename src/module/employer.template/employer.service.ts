@@ -9,7 +9,6 @@ import {
   jobModel,
   jobTypesModel,
   mediaModel,
-  trainingsModel,
   userModel,
 } from "../../models";
 import { type Employer } from "src/models/employer";

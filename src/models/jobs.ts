@@ -2,6 +2,13 @@ import mongoose from "mongoose";
 import { Schema, model, type Document } from "mongoose";
 import _MediaModel from "./media";
 
+interface JobAdditionalData {
+  _id?: Schema.Types.ObjectId | string;
+  image?: Schema.Types.ObjectId | string | null;
+  oldImage?: Schema.Types.ObjectId | string | null;
+  text?: string;
+}
+
 export interface Job {
   city: Schema.Types.ObjectId;
   company: Schema.Types.ObjectId;
@@ -29,6 +36,7 @@ export interface Job {
   locationUrl: any;
   oldJobImage?: any;
   oldtransformedCardContainImage?: any;
+  additionalData?: JobAdditionalData[];
 }
 
 export interface JobDocument extends Job, Document {

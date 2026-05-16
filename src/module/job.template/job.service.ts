@@ -18,12 +18,10 @@ import {
   trainingsModel,
   userModel,
 } from "../../models/index";
-import { type Job } from "../../models/jobs";
 import { type Application } from "../../models/jobApplication";
 import ejs from "ejs";
 import path from "path";
 import emailService from "../../utils/emailService";
-import JobTypesModel from "../../models/jobType";
 import { FileHandler } from "../../utils/fileHandler";
 
 export class JobService {
@@ -40,12 +38,12 @@ export class JobService {
     pageNo: number,
     filter: string,
     recordPerPage: number,
-    slectedCity: any,
-    industry: any,
+    _slectedCity: any,
+    _industry: any,
     isFrontend: string,
-    jobType: string[],
-    date: any,
-    deviceId: string,
+    _jobType: string[],
+    _date: any,
+    _deviceId: string,
     creatorIdFilter: string[] | null = null,
   ) {
     recordPerPage = recordPerPage ? Number(recordPerPage) : 10;
