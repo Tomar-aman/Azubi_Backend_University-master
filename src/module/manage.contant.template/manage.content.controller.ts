@@ -813,6 +813,17 @@ class ManageContentController {
           updatedContent,
         );
       }
+      if (operation === "adminLogo") {
+        const updatedContent =
+          await this.manageContentService.editHomePageV2Content(
+            { ...req.body, ...req.files },
+            operation,
+          );
+        return res.sendSuccess200Response(
+          "Admin logo edited successfully",
+          updatedContent,
+        );
+      }
       if (operation === "welcomeMessageForApp") {
         const updatedContent =
           await this.manageContentService.editHomePageV2Content(

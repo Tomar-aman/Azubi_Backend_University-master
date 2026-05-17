@@ -1767,6 +1767,28 @@ export class ManageContentService {
 
       return updatedDocument; // Ensure the updated document is returned
     }
+    if (operation === "adminLogo") {
+      const { adminLogo, oldAdminLogo, removeAdminLogo } = updatedData;
+      const updateFields: any = {};
+
+      if (removeAdminLogo === "true" || removeAdminLogo === true) {
+        updateFields.adminLogo = null;
+      }
+
+      if (oldAdminLogo) {
+        updateFields.adminLogo = new mongoose.Types.ObjectId(oldAdminLogo);
+      }
+
+      if (adminLogo) {
+        updateFields.adminLogo =
+          await this.fileHandler.saveFileAndCreateMedia(adminLogo);
+      }
+
+      return await homePageContentModel.findOneAndUpdate({}, updateFields, {
+        new: true,
+        upsert: true,
+      });
+    }
     if (operation === "welcomeMessageForApp") {
       await homePageContentModel.findOneAndUpdate(
         {},
@@ -1798,6 +1820,9 @@ export class ManageContentService {
       },
       {
         path: "logoSideImage",
+      },
+      {
+        path: "adminLogo",
       },
     ]);
   }

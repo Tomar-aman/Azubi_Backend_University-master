@@ -51,6 +51,7 @@ export interface HomePageOperationField {
   emailSection: string;
   companiesLogo: string;
   headerLogoSideImage: string;
+  adminLogo: string;
   welcomeMessageForApp: string;
 }
 

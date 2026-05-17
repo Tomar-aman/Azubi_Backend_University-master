@@ -107,6 +107,11 @@ const homePageSchema = new Schema({
     ref: _MediaModel,
     default: null,
   },
+  adminLogo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: _MediaModel,
+    default: null,
+  },
   welcomeMessageForApp: {
     type: welcomeMessageForAppSchema,
     required: false,
