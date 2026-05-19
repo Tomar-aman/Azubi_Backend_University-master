@@ -5,7 +5,7 @@ import { FileHandler } from "../../utils/fileHandler";
 import { JobDocumentService } from "./job.documents.service";
 import { JobImageHandler } from "../../utils/jobsImageHandler";
 import mongoose from "mongoose";
-import { jobImagesModel, managedEmployeeModel, cityModel } from "../../models/index";
+import { jobImagesModel, managedEmployeeModel, cityModel, employerModel } from "../../models/index";
 class JobController {
   private readonly jobService: JobService;
   private readonly fileHandler: FileHandler;
@@ -37,17 +37,23 @@ class JobController {
       const { _id, permissions, position, name } = (req.user as any) || {};
       
       let creatorIdFilter: string[] | null = null;
+      let companyIdFilter: string[] | null = null;
       let finalSelectedCity = slectedCity as string[] | undefined;
 
-      // Handle qrId: if it's a valid city ID, fetch for city. Else, treat as user ID.
+      // Handle qrId: if it's a valid city ID, fetch for city. Else, treat as company or user ID.
       if (qrId) {
         if (mongoose.Types.ObjectId.isValid(qrId as string)) {
           const city = await cityModel.findById(qrId);
           if (city) {
             finalSelectedCity = [qrId as string];
           } else {
-            const employees = await managedEmployeeModel.find({ createdBy: qrId as string }, { _id: 1 });
-            creatorIdFilter = [qrId as string, ...employees.map((e: any) => e._id.toString())];
+            const employer = await employerModel.findById(qrId);
+            if (employer) {
+              companyIdFilter = [qrId as string];
+            } else {
+              const employees = await managedEmployeeModel.find({ createdBy: qrId as string }, { _id: 1 });
+              creatorIdFilter = [qrId as string, ...employees.map((e: any) => e._id.toString())];
+            }
           }
         }
       } 
@@ -80,8 +86,9 @@ class JobController {
         date as any,
         deviceId as string,
         creatorIdFilter,
+        companyIdFilter,
       );
-      const totalRecords = await this.jobService.getCount(creatorIdFilter);
+      const totalRecords = await this.jobService.getCount(creatorIdFilter, companyIdFilter);
       const recordPerPageValue = recordPerPage ? Number(recordPerPage) : 10;
       const count = Math.ceil(totalRecords / recordPerPageValue);
       res.sendSuccess200Response("Jobs retrieved successfully", {

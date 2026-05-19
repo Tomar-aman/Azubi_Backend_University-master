@@ -45,6 +45,7 @@ export class JobService {
     _date: any,
     _deviceId: string,
     creatorIdFilter: string[] | null = null,
+    companyIdFilter: string[] | null = null,
   ) {
     recordPerPage = recordPerPage ? Number(recordPerPage) : 10;
     pageNo = pageNo ? Number(pageNo) : 1;
@@ -52,6 +53,9 @@ export class JobService {
     const matchStage: any = { isDeleted: false };
     if (creatorIdFilter) {
       matchStage.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
+    }
+    if (companyIdFilter) {
+      matchStage.company = { $in: companyIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
     }
 
     if (isFrontend === "true") {
@@ -166,10 +170,13 @@ export class JobService {
     }
   }
 
-  public async getCount(creatorIdFilter: string[] | null = null) {
+  public async getCount(creatorIdFilter: string[] | null = null, companyIdFilter: string[] | null = null) {
     const matchQuery: any = { isDeleted: false };
     if (creatorIdFilter) {
       matchQuery.createdBy = { $in: creatorIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
+    }
+    if (companyIdFilter) {
+      matchQuery.company = { $in: companyIdFilter.map(id => this.objectIdConverter.convertToObjectId(id)) };
     }
     const jobCount = await jobModel.countDocuments(matchQuery);
     return jobCount;

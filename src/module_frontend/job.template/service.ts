@@ -79,6 +79,21 @@ export async function getAllJobService(filters) {
       },
     });
   }
+  if (filters?.qr) {
+    const qrArray = Array.isArray(filters.qr) ? filters.qr : [filters.qr];
+    const validQrArray = qrArray.filter((i: any) => i && mongoose.Types.ObjectId.isValid(i));
+    if (validQrArray.length > 0) {
+      filterQuery.push({
+        company: {
+          $in: validQrArray.map(
+            (i: string) => new mongoose.Types.ObjectId(i),
+          ),
+        },
+      });
+    }
+  }
+  console.log("ALL_JOBS_FRONTEND_FILTERS:", JSON.stringify(filters, null, 2));
+  console.log("ALL_JOBS_FRONTEND_FILTER_QUERY:", JSON.stringify(filterQuery, null, 2));
   console.log("filters.regionfilters.region", filters.region);
   if (filters?.region) {
     filterQuery.push({
