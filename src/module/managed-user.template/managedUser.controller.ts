@@ -68,8 +68,12 @@ class ManagedUserController {
       const user = req.user as any;
       const query: any = {};
       
-      if (user.permissions !== undefined) {
-        query.createdBy = user._id.toString();
+      if (user) {
+        const userModelName = user.constructor?.modelName;
+        const isSuperadmin = userModelName === "User" || (!("permissions" in user) && !("position" in user));
+        if (!isSuperadmin) {
+          query.createdBy = user._id.toString();
+        }
       }
 
       if (searchValue) {

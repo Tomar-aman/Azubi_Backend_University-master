@@ -34,7 +34,7 @@ class JobController {
         creatorId, // <-- Accept creatorId from query for public fetching
         qrId, // <-- Single parameter for scanning QR codes
       } = req.query;
-      const { _id, permissions, position, name } = (req.user as any) || {};
+      const { _id } = (req.user as any) || {};
       
       let creatorIdFilter: string[] | null = null;
       let companyIdFilter: string[] | null = null;
@@ -64,13 +64,18 @@ class JobController {
         creatorIdFilter = [creatorId as string, ...employees.map((e: any) => e._id.toString())];
       } 
       // Otherwise, fallback to the logged in user's permissions (if admin panel)
-      else if (permissions !== undefined) {
-        const isManagedEmployee = position !== undefined || name !== undefined;
-        if (isManagedEmployee) {
-          creatorIdFilter = [_id.toString()];
-        } else {
-          const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
-          creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
+      else if (req.user) {
+        const userModelName = (req.user?.constructor as any)?.modelName;
+        const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
+
+        if (!isSuperadmin) {
+          const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
+          if (isManagedEmployee) {
+            creatorIdFilter = [_id.toString()];
+          } else {
+            const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
+            creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
+          }
         }
       }
 

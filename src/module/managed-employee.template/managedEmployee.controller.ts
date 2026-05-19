@@ -63,8 +63,12 @@ class ManagedEmployeeController {
       
       // If user has permissions defined, they are NOT the superadmin.
       // So they should only see employees they created.
-      if (user.permissions !== undefined) {
-        query.createdBy = user._id.toString();
+      if (user) {
+        const userModelName = user.constructor?.modelName;
+        const isSuperadmin = userModelName === "User" || (!("permissions" in user) && !("position" in user));
+        if (!isSuperadmin) {
+          query.createdBy = user._id.toString();
+        }
       }
 
       if (searchValue) {

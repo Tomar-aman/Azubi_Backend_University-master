@@ -27,15 +27,20 @@ class EmployerController {
   public getAllEmployers = async (req: Request, res: Response) => {
     try {
       const { searchValue, pageNo, filter, recordPerPage } = req.query;
-      const { _id, permissions, createdBy, position, name } = req.user as any;
+      const { _id, createdBy } = req.user as any;
       
       let creatorIdFilter = null;
-      if (permissions !== undefined) {
-        const isManagedEmployee = position !== undefined || name !== undefined;
-        if (isManagedEmployee) {
-          creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
-        } else {
-          creatorIdFilter = _id; // ManagedUser sees their own employers
+      if (req.user) {
+        const userModelName = (req.user?.constructor as any)?.modelName;
+        const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
+
+        if (!isSuperadmin) {
+          const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
+          if (isManagedEmployee) {
+            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+          } else {
+            creatorIdFilter = _id; // ManagedUser sees their own employers
+          }
         }
       }
 
@@ -61,14 +66,19 @@ class EmployerController {
 
   public getEmployeesList = async (req: Request, res: Response) => {
     try {
-      const { _id, permissions, createdBy, position, name } = req.user as any;
+      const { _id, createdBy } = req.user as any;
       let creatorIdFilter = null;
-      if (permissions !== undefined) {
-        const isManagedEmployee = position !== undefined || name !== undefined;
-        if (isManagedEmployee) {
-          creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
-        } else {
-          creatorIdFilter = _id; // ManagedUser sees their own employers
+      if (req.user) {
+        const userModelName = (req.user?.constructor as any)?.modelName;
+        const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
+
+        if (!isSuperadmin) {
+          const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
+          if (isManagedEmployee) {
+            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+          } else {
+            creatorIdFilter = _id; // ManagedUser sees their own employers
+          }
         }
       }
 
