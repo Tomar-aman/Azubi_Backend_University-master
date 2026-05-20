@@ -334,6 +334,9 @@ export async function getCompanyService(Id: string) {
         website: 1,
         phoneNo: 1,
         address: 1,
+        email: 1,
+        mapUrl: 1,
+        locationUrl: 1,
       },
     },
   ]);
@@ -367,6 +370,7 @@ export async function getCompaniesLogoService() {
     {
       $project: {
         companyLogo: 1,
+        email: 1,
       },
     },
   ]);
