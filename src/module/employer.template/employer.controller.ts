@@ -268,7 +268,23 @@ class EmployerController {
   ) => {
     const { city } = req.params;
     try {
-      const data = await this.employerService.getCompanyByCity(city);
+      let creatorIdFilter = null;
+      if (req.user) {
+        const { _id, createdBy } = req.user as any;
+        const userModelName = (req.user?.constructor as any)?.modelName;
+        const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
+
+        if (!isSuperadmin) {
+          const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
+          if (isManagedEmployee) {
+            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+          } else {
+            creatorIdFilter = _id; // ManagedUser sees their own employers
+          }
+        }
+      }
+
+      const data = await this.employerService.getCompanyByCity(city, creatorIdFilter);
       res.sendSuccess200Response(" success", data);
     } catch (error) {
       res.sendErrorResponse("failed", error);

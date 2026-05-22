@@ -366,16 +366,20 @@ export class EmployerService {
     return newEmployer;
   }
 
-  public async getCompanyByCity(cityId: string) {
+  public async getCompanyByCity(cityId: string, creatorIdFilter: string | null = null) {
     const cityIdsArray = cityId.split(",");
     const objectIdCityIds = cityIdsArray.map((id) =>
       this.objectIdConverter.convertToObjectId(id),
     );
+    const query: any = {
+      city: { $in: objectIdCityIds.length ? objectIdCityIds : cityId }, // Use $in to match any of the values in the array
+      isDeleted: false,
+    };
+    if (creatorIdFilter) {
+      query.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+    }
     const employers = await employerModel
-      .find({
-        city: { $in: objectIdCityIds.length ? objectIdCityIds : cityId }, // Use $in to match any of the values in the array
-        isDeleted: false,
-      })
+      .find(query)
       .select("companyName");
     return employers;
   }
