@@ -577,6 +577,7 @@ export class EmployerService {
           description: { $first: "$companyDescription" },
           mapUrl: { $first: "$mapUrl" },
           locationUrl: { $first: "$locationUrl" },
+          region: { $first: "$cityDetails.region" },
         },
       },
     ]);
