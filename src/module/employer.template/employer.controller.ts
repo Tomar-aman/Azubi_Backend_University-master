@@ -171,7 +171,26 @@ class EmployerController {
 
   public addEmployer = async (req: Request, res: Response) => {
     try {
-      const { _id } = req.user;
+      const { _id, createdBy } = req.user as any;
+
+      // Resolve the "owner" the employer should belong to. Companies are
+      // scoped to the ManagedUser (the tenant). A ManagedEmployee creating a
+      // company must stamp it with their parent ManagedUser's id so it lands
+      // in the shared pool that both the employee and the ManagedUser can see
+      // (the listing endpoints filter a ManagedEmployee by createdBy = parent).
+      let ownerId: any = _id;
+      if (req.user) {
+        const userModelName = (req.user?.constructor as any)?.modelName;
+        const isSuperadmin =
+          userModelName === "User" ||
+          (req.user && !("permissions" in req.user) && !("position" in req.user));
+        if (!isSuperadmin) {
+          const isManagedEmployee =
+            userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
+          ownerId = isManagedEmployee ? createdBy : _id;
+        }
+      }
+
       const companyImages = req.files?.companyImages || req.files?.["companyImages[]"];
       const {
         industryName,
@@ -217,7 +236,7 @@ class EmployerController {
         videoLink: JSON.parse(videoLink),
         city,
         status,
-        createdBy: _id,
+        createdBy: ownerId,
         isDeleted: false,
         oldTransformedCardContainImage,
       };
