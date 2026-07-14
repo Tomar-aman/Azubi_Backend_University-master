@@ -316,6 +316,14 @@ export class EmployerService {
       { $set: { isDeleted: true } },
       { new: true },
     );
+
+    // Deleting a company also removes all of its jobs (soft delete, matching
+    // the company itself) so they no longer appear anywhere.
+    await jobModel.updateMany(
+      { company: this.objectIdConverter.convertToObjectId(id) },
+      { $set: { isDeleted: true } },
+    );
+
     return deletedEmployer;
   }
 
