@@ -71,7 +71,17 @@ class JobController {
         if (!isSuperadmin) {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
-            creatorIdFilter = [_id.toString()];
+            // An employee belongs to a ManagedUser (the tenant). Show the whole
+            // tenant's jobs — the parent's plus every employee's (including this
+            // employee's own) — matching how employees see the tenant's companies.
+            const parentId = (req.user as any).createdBy?.toString();
+            const siblings = parentId
+              ? await managedEmployeeModel.find({ createdBy: parentId }, { _id: 1 })
+              : [];
+            creatorIdFilter = [
+              ...(parentId ? [parentId] : [_id.toString()]),
+              ...siblings.map((e: any) => e._id.toString()),
+            ];
           } else {
             const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
             creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
@@ -359,7 +369,12 @@ class JobController {
           training,
           locationField,
           locationUrl,
-          region,
+          // region is optional; only include it when it's a valid ObjectId so an
+          // empty/omitted value doesn't trigger a cast error on create.
+          region:
+            region && mongoose.Types.ObjectId.isValid(region)
+              ? region
+              : undefined,
           oldtransformedCardContainImage: oldtransformedCardContainImage
             ? oldtransformedCardContainImage
             : "",

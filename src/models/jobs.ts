@@ -101,7 +101,7 @@ const jobSchema = new Schema(
     additionalData: { type: [additionalDataSchema], default: [] },
     status: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
-    region: { type: Schema.Types.ObjectId, required: true },
+    region: { type: Schema.Types.ObjectId, required: false },
     createdBy: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   },
   {
