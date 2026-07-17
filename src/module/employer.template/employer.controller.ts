@@ -229,7 +229,8 @@ class EmployerController {
         email,
         website,
         mapUrl,
-        phoneNo: "+49" + phoneNo,
+        // Full international number (incl. country code) comes from the client now.
+        phoneNo,
         address,
         zipCode,
         companyDescription,

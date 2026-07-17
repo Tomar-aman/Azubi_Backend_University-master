@@ -6,6 +6,7 @@ import { JobDocumentService } from "./job.documents.service";
 import { JobImageHandler } from "../../utils/jobsImageHandler";
 import mongoose from "mongoose";
 import { jobImagesModel, managedEmployeeModel, cityModel, employerModel } from "../../models/index";
+import { resolveMapUrl } from "../../utils/resolveMapUrl";
 class JobController {
   private readonly jobService: JobService;
   private readonly fileHandler: FileHandler;
@@ -124,6 +125,11 @@ class JobController {
         res.sendNotFound404Response("Job not found", null);
         return;
       }
+      // Expand short Google Maps links for jobs saved before link-expansion
+      // existed, so the map renders without needing to re-save the job.
+      if (job.mapUrl) {
+        job.mapUrl = await resolveMapUrl(job.mapUrl);
+      }
       res.sendSuccess200Response("Job retrieved successfully", job);
     } catch (error) {
       console.log({ error });
@@ -188,6 +194,10 @@ class JobController {
       }
       if (req.body.newCity) {
         req.body.city = req.body.newCity;
+      }
+      if (req.body.mapUrl) {
+        // Expand short Google Maps share links so the saved URL can be embedded.
+        req.body.mapUrl = await resolveMapUrl(req.body.mapUrl);
       }
       const updatedJob = await this.jobService.updateJobByIdService(
         id,
@@ -353,7 +363,8 @@ class JobController {
           email,
           additionalEmail,
           address,
-          mapUrl,
+          // Expand short Google Maps share links so the saved URL can be embedded.
+          mapUrl: await resolveMapUrl(mapUrl),
           zipCode,
           jobDescription,
           status,
