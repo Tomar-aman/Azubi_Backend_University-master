@@ -12,6 +12,7 @@ import { type UserSession } from "../../models/session";
 import { AuthService } from "../auth.template/auth.service";
 import { JobService } from "../job.template/job.service";
 import { EmployerService } from "../employer.template/employer.service";
+import { managedUserModel, managedEmployeeModel } from "../../models/index";
 
 class UserController {
   private readonly userService: UserService;
@@ -58,16 +59,34 @@ class UserController {
   public getForPasswordLink = async (req: Request, res: Response) => {
     try {
       const { email } = req.params;
-      const user = await this.userService.findOneWithOptions({ email });
+      // Look up the email across all account types (admin, managed user,
+      // managed employee) so any of them can request a reset link.
+      let user: any = await this.userService.findOneWithOptions({ email });
+      if (!user) user = await managedUserModel.findOne({ email });
+      if (!user) user = await managedEmployeeModel.findOne({ email });
       if (!user) {
-        res.sendCustomErrorResponse("user not found", null);
+        res.sendNotFound404Response("User not found", null);
       } else {
         const payload = {
           id: user._id,
         };
         const resetToken = this.jwtService.sign(payload, { expiresIn: "1h" });
 
-        const resetLink = `${process.env.FRONTEND_URL}/${process.env.RESET_PASSWORD}?token=${resetToken}`;
+        // Build the reset link against the site the request actually came from
+        // (admin / managed-user / managed-employee domain), so the link always
+        // points back to the correct frontend. Falls back to FRONTEND_URL.
+        let baseUrl = (req.headers.origin as string) || "";
+        if (!baseUrl && req.headers.referer) {
+          try {
+            baseUrl = new URL(req.headers.referer as string).origin;
+          } catch {
+            baseUrl = "";
+          }
+        }
+        if (!baseUrl) baseUrl = process.env.FRONTEND_URL ?? "";
+        baseUrl = baseUrl.replace(/\/$/, "");
+
+        const resetLink = `${baseUrl}/${process.env.RESET_PASSWORD}?token=${resetToken}`;
         const emailOptions: any = {
           to: user.email,
           subject: "Password Reset Request",
@@ -91,16 +110,32 @@ class UserController {
     try {
       const { token, password } = req.body;
       const decoded = this.jwtService.verify(token) as JwtRefreshTokenClaims;
-      const user = await this.userService.findOneWithOptions({
+      // Resolve the account across all types (admin / managed user / employee).
+      let user: any = await this.userService.findOneWithOptions({
         _id: decoded.id,
       });
+      let isManaged = false;
+      if (!user) {
+        user = await managedUserModel.findById(decoded.id);
+        if (user) isManaged = true;
+      }
+      if (!user) {
+        user = await managedEmployeeModel.findById(decoded.id);
+        if (user) isManaged = true;
+      }
       if (user) {
         const payload: UserSession = {
           userAgent: req.headers["user-agent"] ?? "",
           ipAddress: req.ip ?? "",
           userId: user._id,
         };
-        await this.userService.updateForgetPassword(user._id, password);
+        if (isManaged) {
+          // Managed models hash the password via their pre-save hook.
+          user.password = password;
+          await user.save();
+        } else {
+          await this.userService.updateForgetPassword(user._id, password);
+        }
         const session = await this.userService.createSession(payload);
         const accessTokenPayload: JwtAccessTokenPayload = {
           sessionId: session._id,

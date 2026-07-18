@@ -7,7 +7,7 @@ interface EmailOptions {
   subject: string;
   text?: string;
   html?: string;
-  to?: string[];
+  to?: string | string[];
   // eslint-disable-next-line @typescript-eslint/array-type
   attachments?: { filename: string; content: Buffer }[];
 }
@@ -67,7 +67,10 @@ class EmailService {
       const { subject, text, html, bcc, to, attachments } = options;
       const mailOptions = {
         from: this.fromEmail,
-        to: to?.join(", "),   // FIX: was missing — nodemailer needs this to send
+        // `to` may arrive as an array (job/appointment emails) or a single
+        // string (e.g. the password-reset link). Calling .join() on a string
+        // throws and silently kills the send, so normalise both shapes here.
+        to: Array.isArray(to) ? to.join(", ") : to,
         bcc,
         subject,
         text,
