@@ -6,7 +6,7 @@ import logger from "../../utils/logger";
 import ObjectIdConverter from "../../utils/objectIdConvertor";
 import { CompanyImageHandler } from "../../utils/companyImageHandler";
 import { type EmployerBodyPaylaodFrontend } from "./employer.types";
-import { companyImageModel, smtpSettingModel } from "../../models/index";
+import { companyImageModel, smtpSettingModel, managedEmployeeModel } from "../../models/index";
 class EmployerController {
   private readonly employerService: EmployerService;
   private readonly fileHandler: FileHandler;
@@ -27,9 +27,9 @@ class EmployerController {
   public getAllEmployers = async (req: Request, res: Response) => {
     try {
       const { searchValue, pageNo, filter, recordPerPage } = req.query;
-      const { _id, createdBy } = req.user as any;
-      
-      let creatorIdFilter = null;
+      const { _id } = req.user as any;
+
+      let creatorIdFilter: any = null;
       if (req.user) {
         const userModelName = (req.user?.constructor as any)?.modelName;
         const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
@@ -37,9 +37,12 @@ class EmployerController {
         if (!isSuperadmin) {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
-            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+            // Employee sees ONLY the companies they created themselves.
+            creatorIdFilter = [_id.toString()];
           } else {
-            creatorIdFilter = _id; // ManagedUser sees their own employers
+            // Employer (ManagedUser) sees their own companies + all their employees'.
+            const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
+            creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
           }
         }
       }
@@ -66,8 +69,8 @@ class EmployerController {
 
   public getEmployeesList = async (req: Request, res: Response) => {
     try {
-      const { _id, createdBy } = req.user as any;
-      let creatorIdFilter = null;
+      const { _id } = req.user as any;
+      let creatorIdFilter: any = null;
       if (req.user) {
         const userModelName = (req.user?.constructor as any)?.modelName;
         const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
@@ -75,9 +78,10 @@ class EmployerController {
         if (!isSuperadmin) {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
-            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+            creatorIdFilter = [_id.toString()]; // employee: only their own
           } else {
-            creatorIdFilter = _id; // ManagedUser sees their own employers
+            const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
+            creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
           }
         }
       }
@@ -171,25 +175,12 @@ class EmployerController {
 
   public addEmployer = async (req: Request, res: Response) => {
     try {
-      const { _id, createdBy } = req.user as any;
+      const { _id } = req.user as any;
 
-      // Resolve the "owner" the employer should belong to. Companies are
-      // scoped to the ManagedUser (the tenant). A ManagedEmployee creating a
-      // company must stamp it with their parent ManagedUser's id so it lands
-      // in the shared pool that both the employee and the ManagedUser can see
-      // (the listing endpoints filter a ManagedEmployee by createdBy = parent).
-      let ownerId: any = _id;
-      if (req.user) {
-        const userModelName = (req.user?.constructor as any)?.modelName;
-        const isSuperadmin =
-          userModelName === "User" ||
-          (req.user && !("permissions" in req.user) && !("position" in req.user));
-        if (!isSuperadmin) {
-          const isManagedEmployee =
-            userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
-          ownerId = isManagedEmployee ? createdBy : _id;
-        }
-      }
+      // Stamp the company with its actual creator. Each account (admin,
+      // employer, employee) only sees what it created (the employer also sees
+      // its employees'), so the creator's own id is what we save.
+      const ownerId: any = _id;
 
       const companyImages = req.files?.companyImages || req.files?.["companyImages[]"];
       const {
@@ -288,18 +279,19 @@ class EmployerController {
   ) => {
     const { city } = req.params;
     try {
-      let creatorIdFilter = null;
+      let creatorIdFilter: any = null;
       if (req.user) {
-        const { _id, createdBy } = req.user as any;
+        const { _id } = req.user as any;
         const userModelName = (req.user?.constructor as any)?.modelName;
         const isSuperadmin = userModelName === "User" || (req.user && !("permissions" in req.user) && !("position" in req.user));
 
         if (!isSuperadmin) {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
-            creatorIdFilter = createdBy; // ManagedEmployee sees User's employers
+            creatorIdFilter = [_id.toString()]; // employee: only their own
           } else {
-            creatorIdFilter = _id; // ManagedUser sees their own employers
+            const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
+            creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
           }
         }
       }

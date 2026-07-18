@@ -72,18 +72,10 @@ class JobController {
         if (!isSuperadmin) {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
-            // An employee belongs to a ManagedUser (the tenant). Show the whole
-            // tenant's jobs — the parent's plus every employee's (including this
-            // employee's own) — matching how employees see the tenant's companies.
-            const parentId = (req.user as any).createdBy?.toString();
-            const siblings = parentId
-              ? await managedEmployeeModel.find({ createdBy: parentId }, { _id: 1 })
-              : [];
-            creatorIdFilter = [
-              ...(parentId ? [parentId] : [_id.toString()]),
-              ...siblings.map((e: any) => e._id.toString()),
-            ];
+            // Employee sees ONLY the jobs they created themselves.
+            creatorIdFilter = [_id.toString()];
           } else {
+            // Employer (ManagedUser) sees their own jobs + all their employees'.
             const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
             creatorIdFilter = [_id.toString(), ...employees.map((e: any) => e._id.toString())];
           }

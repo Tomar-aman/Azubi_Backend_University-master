@@ -37,7 +37,10 @@ export class EmployerService {
 
     const matchStage: any = { isDeleted: false };
     if (creatorIdFilter) {
-      matchStage.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+      const ids = Array.isArray(creatorIdFilter) ? creatorIdFilter : [creatorIdFilter];
+      matchStage.createdBy = {
+        $in: ids.map((id) => this.objectIdConverter.convertToObjectId(id)),
+      };
     }
 
     // Match stage
@@ -146,10 +149,15 @@ export class EmployerService {
     return result[0] ? result[0].data : [];
   }
 
-  public getEmployeesListService = async (creatorIdFilter: string | null = null) => {
+  public getEmployeesListService = async (
+    creatorIdFilter: string | string[] | null = null,
+  ) => {
     const matchQuery: any = { isDeleted: false };
     if (creatorIdFilter) {
-      matchQuery.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+      const ids = Array.isArray(creatorIdFilter) ? creatorIdFilter : [creatorIdFilter];
+      matchQuery.createdBy = {
+        $in: ids.map((id) => this.objectIdConverter.convertToObjectId(id)),
+      };
     }
     const companies = await employerModel.find(matchQuery);
     if (companies)
@@ -163,7 +171,10 @@ export class EmployerService {
   public async getCount(creatorIdFilter = null) {
     const matchQuery: any = { isDeleted: false };
     if (creatorIdFilter) {
-      matchQuery.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+      const ids = Array.isArray(creatorIdFilter) ? creatorIdFilter : [creatorIdFilter];
+      matchQuery.createdBy = {
+        $in: ids.map((id) => this.objectIdConverter.convertToObjectId(id)),
+      };
     }
     const employer = await employerModel
       .find(matchQuery)
@@ -374,7 +385,10 @@ export class EmployerService {
     return newEmployer;
   }
 
-  public async getCompanyByCity(cityId: string, creatorIdFilter: string | null = null) {
+  public async getCompanyByCity(
+    cityId: string,
+    creatorIdFilter: string | string[] | null = null,
+  ) {
     const cityIdsArray = cityId.split(",");
     const objectIdCityIds = cityIdsArray.map((id) =>
       this.objectIdConverter.convertToObjectId(id),
@@ -384,7 +398,10 @@ export class EmployerService {
       isDeleted: false,
     };
     if (creatorIdFilter) {
-      query.createdBy = this.objectIdConverter.convertToObjectId(creatorIdFilter);
+      const ids = Array.isArray(creatorIdFilter) ? creatorIdFilter : [creatorIdFilter];
+      query.createdBy = {
+        $in: ids.map((id) => this.objectIdConverter.convertToObjectId(id)),
+      };
     }
     const employers = await employerModel
       .find(query)
