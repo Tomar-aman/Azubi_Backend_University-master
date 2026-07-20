@@ -30,8 +30,14 @@ export interface Job {
   createdBy: Schema.Types.ObjectId;
   isDeleted: boolean;
   industryName: Schema.Types.ObjectId;
+  // Multi-select industries. `industryName` (above) is kept as the legacy
+  // single value (first selected) for backward compatibility with the frontend.
+  industries?: (Schema.Types.ObjectId | string)[];
   videoLink: string[];
   jobType: Schema.Types.ObjectId;
+  // Multi-select job types. `jobType` (above) is kept as the legacy single
+  // value (first selected) for backward compatibility with the frontend.
+  jobTypes?: (Schema.Types.ObjectId | string)[];
   region: Schema.Types.ObjectId;
   isDesktopView?: boolean;
   locationField: string;
@@ -58,6 +64,8 @@ const additionalDataSchema = new Schema({
 const jobSchema = new Schema(
   {
     jobType: { type: Schema.Types.ObjectId, required: false },
+    // Multi-select job types (legacy single `jobType` kept above).
+    jobTypes: [{ type: Schema.Types.ObjectId, ref: "JobTypes" }],
     videoLink: { type: [{ type: String }], required: false },
     city: [{ type: Schema.Types.ObjectId, ref: "City", required: true }],
     industryName: {
@@ -65,6 +73,8 @@ const jobSchema = new Schema(
       ref: "Industries",
       required: true,
     },
+    // Multi-select industries (legacy single `industryName` kept above).
+    industries: [{ type: Schema.Types.ObjectId, ref: "Industries" }],
     company: {
       type: Schema.Types.ObjectId,
       ref: "Employer",

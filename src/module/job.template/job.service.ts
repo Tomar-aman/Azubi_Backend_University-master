@@ -552,10 +552,31 @@ export class JobService {
           as: "jobImages",
         },
       },
+      // Multi-select industries/jobTypes: resolve the id arrays to full docs so
+      // the edit form can prefill multiple selections. Legacy single
+      // industryName/jobType above are kept for backward compatibility.
+      {
+        $lookup: {
+          from: industriesModel.collection.name,
+          localField: "industries",
+          foreignField: "_id",
+          as: "industries",
+        },
+      },
+      {
+        $lookup: {
+          from: jobTypesModel.collection.name,
+          localField: "jobTypes",
+          foreignField: "_id",
+          as: "jobTypes",
+        },
+      },
       {
         $project: {
           _id: 1,
           jobType: 1,
+          jobTypes: 1,
+          industries: 1,
           videoLink: 1,
           city: 1,
           cityDetail: 1,

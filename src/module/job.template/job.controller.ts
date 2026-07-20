@@ -133,6 +133,29 @@ class JobController {
   public updateJobById = async (req: Request, res: Response) => {
     try {
       const { id } = req.body;
+      // Multi-select support: normalize industries/jobTypes to arrays of valid
+      // ids and keep the legacy single industryName/jobType in sync (first
+      // selected) for backward compatibility with the public frontend. Only
+      // touch them when the arrays are actually provided, so unrelated updates
+      // (e.g. status toggle) leave the existing values intact.
+      const toIdArray = (val: any): string[] =>
+        (Array.isArray(val) ? val : val ? [val] : []).filter(
+          (idValue: any) => idValue && mongoose.Types.ObjectId.isValid(idValue),
+        );
+      if (req.body.industries !== undefined) {
+        const industries = toIdArray(req.body.industries);
+        req.body.industries = industries;
+        if (industries[0]) {
+          req.body.industryName = industries[0];
+        }
+      }
+      if (req.body.jobTypes !== undefined) {
+        const jobTypes = toIdArray(req.body.jobTypes);
+        req.body.jobTypes = jobTypes;
+        if (jobTypes[0]) {
+          req.body.jobType = jobTypes[0];
+        }
+      }
       if (!req.body.startTime) {
         req.body.startTime = null;
       }
@@ -295,6 +318,17 @@ class JobController {
         region,
         oldtransformedCardContainImage,
       } = req.body;
+      // Multi-select support: normalize industries/jobTypes to arrays of valid
+      // ids and keep the legacy single industryName/jobType populated (first
+      // selected) for backward compatibility with the public frontend.
+      const toIdArray = (val: any): string[] =>
+        (Array.isArray(val) ? val : val ? [val] : []).filter(
+          (id: any) => id && mongoose.Types.ObjectId.isValid(id),
+        );
+      const industries = toIdArray(req.body.industries);
+      const jobTypes = toIdArray(req.body.jobTypes);
+      const legacyIndustryName = industries[0] ?? industryName;
+      const legacyJobType = jobTypes[0] ?? jobType;
       if (!req.body.startTime) {
         req.body.startTime = null;
       }
@@ -367,9 +401,11 @@ class JobController {
           status,
           createdBy: _id,
           isDeleted,
-          industryName,
+          industryName: legacyIndustryName,
+          industries,
           videoLink,
-          jobType,
+          jobType: legacyJobType,
+          jobTypes,
           embeddedCode,
           isDesktopView,
           federalState,
