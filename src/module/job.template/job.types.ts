@@ -8,6 +8,9 @@ export const createJobSchema = Joi.object({
   jobTitle: Joi.string().required(),
   email: Joi.string().email().required(),
   additionalEmail: Joi.optional(),
+  website: Joi.string().allow("").optional(),
+  // Phone number is a free-text field: special characters (| \ - etc.) allowed.
+  phoneNumber: Joi.string().allow("").optional(),
   address: Joi.string().required(),
   mapUrl: Joi.string().required(),
   zipCode: Joi.string().required(),
@@ -25,6 +28,9 @@ export const updateJobSchema = Joi.object({
   jobTitle: Joi.string(),
   email: Joi.string().email(),
   additionalEmail: Joi.optional(),
+  website: Joi.string().allow("").optional(),
+  // Phone number is a free-text field: special characters (| \ - etc.) allowed.
+  phoneNumber: Joi.string().allow("").optional(),
   address: Joi.string(),
   zipCode: Joi.string(),
   attachments: Joi.array(),

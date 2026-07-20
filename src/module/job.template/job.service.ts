@@ -566,6 +566,8 @@ export class JobService {
           startDate: 1,
           email: 1,
           additionalEmail: 1,
+          website: 1,
+          phoneNumber: 1,
           address: 1,
           mapUrl: 1,
           zipCode: 1,

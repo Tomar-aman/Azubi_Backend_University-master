@@ -13,8 +13,11 @@ export class JobTypesService {
   }
 
   public async findByName(jobTypeName) {
+    // Exact, case-sensitive match so differently-cased names (e.g. "Software
+    // Engineer" vs "software engineer") are treated as distinct — consistent
+    // with the case-sensitive unique index on jobTypeName.
     const jobTypes = await jobTypesModel.findOne({
-      jobTypeName: { $regex: new RegExp(`^${jobTypeName}$`, "i") },
+      jobTypeName,
       isDeleted: false,
     });
     return jobTypes;
@@ -64,6 +67,20 @@ export class JobTypesService {
   }
 
   public async addJobTypeService(jobTypeData: JobTypes) {
+    // A soft-deleted job type keeps its name in the unique index, so a plain
+    // create would fail with a duplicate-key error when re-adding a previously
+    // deleted name. Revive it instead of erroring out.
+    const existing = await jobTypesModel.findOne({
+      jobTypeName: jobTypeData.jobTypeName,
+    });
+    if (existing) {
+      if (existing.isDeleted) {
+        existing.isDeleted = false;
+        await existing.save();
+        return existing;
+      }
+      throw new Error("Job type already exists");
+    }
     const newJobType = await jobTypesModel.create({
       jobTypeName: jobTypeData.jobTypeName,
     });

@@ -102,6 +102,7 @@ class JobController {
       res.sendSuccess200Response("Jobs retrieved successfully", {
         jobs,
         count,
+        total: totalRecords,
       });
     } catch (error) {
       logger.error("getAllJobs", error);
@@ -273,6 +274,8 @@ class JobController {
         jobTitle,
         email,
         additionalEmail,
+        website,
+        phoneNumber,
         address,
         zipCode,
         jobDescription,
@@ -354,6 +357,8 @@ class JobController {
           startDate,
           email,
           additionalEmail,
+          website,
+          phoneNumber,
           address,
           // Expand short Google Maps share links so the saved URL can be embedded.
           mapUrl: await resolveMapUrl(mapUrl),

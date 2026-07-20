@@ -20,6 +20,8 @@ export interface Job {
   startDate: Date;
   email: string;
   additionalEmail?: string;
+  website?: string;
+  phoneNumber?: string;
   address: string;
   mapUrl?: string;
   zipCode: string;
@@ -73,6 +75,8 @@ const jobSchema = new Schema(
     startDate: { type: Date, required: false },
     email: { type: String, required: true },
     additionalEmail: { type: String },
+    website: { type: String, required: false, default: "" },
+    phoneNumber: { type: String, required: false, default: "" },
     address: { type: String, required: true },
     mapUrl: { type: String, required: false },
     zipCode: { type: String, required: false },

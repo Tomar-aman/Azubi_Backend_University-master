@@ -60,6 +60,7 @@ class EmployerController {
       res.sendSuccess200Response("Employers retrieved successfully", {
         employers,
         count,
+        total: totalRecords,
       });
     } catch (error) {
       logger.error("getAllEmployers", error);
