@@ -5,7 +5,7 @@ import { FileHandler } from "../../utils/fileHandler";
 import { JobDocumentService } from "./job.documents.service";
 import { JobImageHandler } from "../../utils/jobsImageHandler";
 import mongoose from "mongoose";
-import { jobImagesModel, managedEmployeeModel, cityModel, employerModel } from "../../models/index";
+import { jobImagesModel, managedEmployeeModel, cityModel, employerModel, userModel } from "../../models/index";
 import { resolveMapUrl } from "../../utils/resolveMapUrl";
 class JobController {
   private readonly jobService: JobService;
@@ -73,7 +73,15 @@ class JobController {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
             // Employee sees ONLY the jobs they created themselves.
-            creatorIdFilter = [_id.toString()];
+            // creatorIdFilter = [_id.toString()];
+
+            // New requirement: employee also sees jobs created by the admin
+            // (superadmin User accounts), in addition to their own.
+            const adminUsers = await userModel.find({}, { _id: 1 });
+            creatorIdFilter = [
+              _id.toString(),
+              ...adminUsers.map((u: any) => u._id.toString()),
+            ];
           } else {
             // Employer (ManagedUser) sees their own jobs + all their employees'.
             const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });

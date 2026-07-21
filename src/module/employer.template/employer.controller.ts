@@ -6,7 +6,7 @@ import logger from "../../utils/logger";
 import ObjectIdConverter from "../../utils/objectIdConvertor";
 import { CompanyImageHandler } from "../../utils/companyImageHandler";
 import { type EmployerBodyPaylaodFrontend } from "./employer.types";
-import { companyImageModel, smtpSettingModel, managedEmployeeModel } from "../../models/index";
+import { companyImageModel, smtpSettingModel, managedEmployeeModel, userModel } from "../../models/index";
 class EmployerController {
   private readonly employerService: EmployerService;
   private readonly fileHandler: FileHandler;
@@ -38,7 +38,15 @@ class EmployerController {
           const isManagedEmployee = userModelName === "ManagedEmployee" || (req.user && "position" in req.user);
           if (isManagedEmployee) {
             // Employee sees ONLY the companies they created themselves.
-            creatorIdFilter = [_id.toString()];
+            // creatorIdFilter = [_id.toString()];
+
+            // New requirement: employee also sees companies created by the
+            // admin (superadmin User accounts), in addition to their own.
+            const adminUsers = await userModel.find({}, { _id: 1 });
+            creatorIdFilter = [
+              _id.toString(),
+              ...adminUsers.map((u: any) => u._id.toString()),
+            ];
           } else {
             // Employer (ManagedUser) sees their own companies + all their employees'.
             const employees = await managedEmployeeModel.find({ createdBy: _id.toString() }, { _id: 1 });
