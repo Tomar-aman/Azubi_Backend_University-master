@@ -331,9 +331,10 @@ class EmployerController {
         isFillter,
         slectedCity,
         skip,
+        limit,
       }: EmployerBodyPaylaodFrontend = <any>req.query;
       const data = await this.employerService.getAllEmployersForFrontendService(
-        { searchValue, isFillter, slectedCity, skip },
+        { searchValue, isFillter, slectedCity, skip, limit },
       );
       res.sendSuccess200Response(" success", data);
     } catch (error) {

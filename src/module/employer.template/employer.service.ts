@@ -18,6 +18,11 @@ import ejs from "ejs";
 import path from "path";
 import emailService from "../../utils/emailService";
 import { FileHandler } from "../../utils/fileHandler";
+
+// Upper bound for the public company list. Keeps one request from pulling the
+// whole collection while still being large enough for the full public roster.
+const MAX_FRONTEND_COMPANY_LIMIT = 500;
+
 export class EmployerService {
   private readonly objectIdConverter: ObjectIdConverter;
   private readonly fileHandler: FileHandler;
@@ -459,6 +464,13 @@ export class EmployerService {
   ) {
     const filterQuery = {};
     const skip = paylaod.skip ?? 0;
+    // Page size is caller-driven, but always bounded so a missing or bad
+    // `limit` can never turn this into an unbounded collection scan.
+    const requestedLimit = Number(paylaod.limit);
+    const limit =
+      requestedLimit > 0
+        ? Math.min(requestedLimit, MAX_FRONTEND_COMPANY_LIMIT)
+        : MAX_FRONTEND_COMPANY_LIMIT;
     if (paylaod.slectedCity) {
       if (typeof paylaod.slectedCity === "string") {
         paylaod.slectedCity = [paylaod.slectedCity];
@@ -586,12 +598,6 @@ export class EmployerService {
         },
       },
       {
-        $skip: Number(skip),
-      },
-      {
-        $limit: 100,
-      },
-      {
         $group: {
           _id: "$_id",
           industryName: { $first: "$industryName.industryName" },
@@ -604,6 +610,17 @@ export class EmployerService {
           locationUrl: { $first: "$locationUrl" },
           region: { $first: "$cityDetails.region" },
         },
+      },
+      // $group does not preserve input order, so sort before paging: without a
+      // deterministic sort $skip/$limit can repeat or drop companies.
+      {
+        $sort: { companyName: 1 },
+      },
+      {
+        $skip: Number(skip),
+      },
+      {
+        $limit: limit,
       },
     ]);
     return EmpList;
