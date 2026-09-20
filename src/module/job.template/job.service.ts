@@ -24,6 +24,10 @@ import path from "path";
 import emailService from "../../utils/emailService";
 import { FileHandler } from "../../utils/fileHandler";
 
+// Upper bound for the public job list. Keeps one request from pulling the
+// whole collection while still covering the full public roster.
+const MAX_FRONTEND_JOB_LIMIT = 5000;
+
 export class JobService {
   private readonly objectIdConverter: ObjectIdConverter;
   private readonly fileHandler: FileHandler;
@@ -47,6 +51,11 @@ export class JobService {
     creatorIdFilter: string[] | null = null,
     companyIdFilter: string[] | null = null,
   ) {
+    // Captured before the admin default below: on the frontend branch an
+    // absent recordPerPage means "the whole public list", but the admin
+    // table still defaults to pages of 10.
+    const requestedRecordPerPage =
+      Number(recordPerPage) > 0 ? Number(recordPerPage) : 0;
     recordPerPage = recordPerPage ? Number(recordPerPage) : 10;
     pageNo = pageNo ? Number(pageNo) : 1;
 
@@ -150,12 +159,20 @@ export class JobService {
     });
 
     pipeline.push({
-      $limit: isFrontend === "true" ? pageNo * recordPerPage : recordPerPage || 0,
+      $limit:
+        isFrontend === "true"
+          ? Math.min(
+            requestedRecordPerPage
+              ? pageNo * requestedRecordPerPage
+              : MAX_FRONTEND_JOB_LIMIT,
+            MAX_FRONTEND_JOB_LIMIT,
+          )
+          : recordPerPage || 0,
     });
 
     try {
       const result = await jobModel.aggregate(pipeline).allowDiskUse(true).exec();
-      
+
       // Map to old structure for compatibility
       const formattedData = result.map(job => ({
         ...job,
